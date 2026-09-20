@@ -1,66 +1,26 @@
-# 🎧 Nova Music Player
+# 🎧 Nova Music Player (v2 — neon mobile edition)
 
-Full-featured music player that runs on **PC (browser)** today and installs on **mobile as an APK** tomorrow — no rewrite needed.
+Simple, mobile-first music player. Dark neon design, 4 tabs, nothing confusing.
 
-## ✨ All options included
-- ▶ Play / pause / next / previous, seek bar, time display
-- 🔊 Volume, mute
-- 🔀 Shuffle, 🔁 Repeat off / all / one
-- 📃 Queue (play next, add to queue, reorder-ish, clear, shuffle queue)
-- ❤️ Favorites, 🕘 Recently played, 🔥 Most played, 📊 Stats
-- 🎶 Playlists (create / rename / delete / add songs)
-- 🔍 Search, filter (demo / local / liked), sort (title, artist, duration, plays, recent)
-- 📁 Local files: upload button + drag & drop, MP3/WAV/OGG/M4A/FLAC/WEBM, saved in IndexedDB (persists after reload)
-- 🎚️ 5-band Equalizer + presets + preamp + balance (Web Audio API)
-- ⏩ Speed 0.5×–2×, crossfade 0–8s, gapless toggle
-- 😴 Sleep timer (5/10/15/30/60 min with fade-out)
-- 📝 Per-song lyrics editor
-- 🎨 Dark / light theme, 8 accent colors
-- 📊 Live visualizer (mini bar + fullscreen)
-- ⛶ Fullscreen Now-Playing (swipe left/right = next/prev)
-- ⌨️ Keyboard shortcuts, headset / lock-screen controls (Media Session API)
-- 📲 PWA installable, offline via service worker
-- ⬇ Export / ⬆ Import library backup (JSON)
+## ✨ What's inside
+- 🏠 **Home** — greeting, search, Popular Songs cards, playlists, recently played
+- ✨ **New** — latest additions + Add Music button
+- 📻 **Radio** — endless shuffle mix, tap once and it keeps playing
+- 🎶 **Library** — Songs / Playlists / ♥ Liked + Add Music
+- ▶ Full player — big art, progress, shuffle/repeat, volume, lyrics, EQ, sleep timer, queue
+- 🎚️ Equalizer with presets, 📝 lyrics, 😴 sleep timer, ☆ favorites, 🎶 playlists
+- 📁 Your own MP3/WAV/OGG/M4A files (saved on-device, play offline)
+- 📲 PWA + APK ready, 🔒 everything stays on your device
 
-## 🖥️ Test on PC (2 options)
+## 🖥️ Test on PC
+Double-click `start-pc.bat`, open `http://localhost:8000` (page shows a phone-size column — that's normal).
 
-**Option A — double click (quickest):**
-1. Open folder `Music_Player`
-2. Double-click `index.html` (or `start-pc.bat`)
-
-**Option B — local server (recommended, enables PWA + service worker):**
-```bat
-start-pc.bat
-```
-or manually:
-```powershell
-python -m http.server 8000
-# then open http://localhost:8000
-```
-
-Demo songs (10 SoundHelix tracks) play instantly. Click **＋ Add Music** to add your own files.
-
-## 📲 Install as APK on mobile
-
-Full step-by-step in **[BUILD-APK.md](BUILD-APK.md)**. Fastest path:
-
-1. Host this folder free (GitHub Pages / Netlify / Vercel) — must be **HTTPS**
-2. Go to **https://www.pwabuilder.com** → paste your HTTPS URL → **Package for Android** → download `.apk`
-3. Copy APK to phone → install (allow unknown sources)
-
-No code change needed — `manifest.json` + `sw.js` + icons are already included.
+## 📲 Build / update the APK
+1. Upload all files to GitHub (drag-drop), including `.well-known/assetlinks.json` and `.nojekyll`
+2. Enable Pages (`master` / root) → `https://ashwaqahmed56.github.io/Music_Player/`
+3. **Important:** host `assetlinks.json` so the app opens fullscreen with no browser bar (the `.well-known` folder + `.nojekyll` do this)
+4. PWABuilder → paste URL → **Package for Android** → reuse your existing `signing.keystore` (passwords in `signing-key-info.txt`) so the new version installs as an **update** instead of a separate app
+5. Install the new APK on your phone (keep the keystore backed up forever)
 
 ## 📁 Files
-| File | What |
-|---|---|
-| `index.html` | UI shell |
-| `styles.css` | Dark/light responsive theme |
-| `app.js` | Full player engine |
-| `manifest.json` | PWA install config |
-| `sw.js` | Offline cache |
-| `icon.svg` / `icon-*.png` | App icons |
-| `BUILD-APK.md` | APK guide (3 methods) |
-| `start-pc.bat` | 1-click PC launch |
-
-## 🔒 Privacy
-Everything stays on-device (localStorage + IndexedDB). Only demo MP3s stream from soundhelix.com. No tracking.
+`index.html` · `styles.css` · `app.js` · `manifest.json` · `sw.js` · `icon.svg` · `icon-192.png` · `icon-512.png` · `.well-known/assetlinks.json` · `.nojekyll` · `BUILD-APK.md` · `start-pc.bat`

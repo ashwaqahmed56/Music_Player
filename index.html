@@ -3,299 +3,136 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Nova Music Player</title>
-<meta name="description" content="Nova Music Player - full-featured music player for PC and Mobile (APK ready)" />
-<meta name="theme-color" content="#7c3aed" />
+<title>Nova — Music Player</title>
+<meta name="description" content="Nova music player — simple, neon, mobile-first" />
+<meta name="theme-color" content="#070b1a" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
 <body>
+<div class="bg-glow"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span></div>
+<div id="dropOverlay" class="drop-overlay hidden"><div class="drop-box">🎵<h2>Drop music here</h2><p>MP3 · WAV · OGG · M4A · FLAC</p></div></div>
 
-<div id="dropOverlay" class="drop-overlay hidden">
-  <div class="drop-box">
-    <div class="drop-icon">🎵</div>
-    <h2>Drop audio files to add</h2>
-    <p>MP3, WAV, OGG, M4A, FLAC, WEBM supported</p>
-  </div>
-</div>
-
-<header class="topbar">
-  <div class="logo" id="logoBtn">🎧 <span>Nova</span>Player</div>
-  <div class="search-wrap">
-    <span class="search-icon">🔍</span>
-    <input id="searchInput" type="search" placeholder="Search songs, artists, albums..." autocomplete="off" />
-    <button id="clearSearch" class="icon-btn hidden" title="Clear">✕</button>
-  </div>
-  <div class="top-actions">
-    <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.webm,.opus" multiple hidden />
-    <button id="addFilesBtn" class="btn primary" title="Add local music files">＋ Add Music</button>
-    <button id="themeBtn" class="icon-btn" title="Toggle dark / light">🌙</button>
-    <button id="installBtn" class="btn ghost hidden">📲 Install</button>
-  </div>
-</header>
-
-<div class="layout">
-  <aside class="sidebar" id="sidebar">
-    <nav class="nav">
-      <button class="nav-item active" data-view="all">🎵 All Songs <span class="count" id="countAll"></span></button>
-      <button class="nav-item" data-view="favorites">❤️ Favorites <span class="count" id="countFav"></span></button>
-      <button class="nav-item" data-view="recent">🕘 Recently Played</button>
-      <button class="nav-item" data-view="most">🔥 Most Played</button>
-      <button class="nav-item" data-view="queue">📃 Queue <span class="count" id="countQueue"></span></button>
-      <div class="nav-sep">Playlists</div>
-      <div id="playlistNav"></div>
-      <button class="nav-item dashed" id="newPlaylistBtn">＋ New Playlist</button>
-      <div class="nav-sep">Tools</div>
-      <button class="nav-item" data-view="equalizer">🎚️ Equalizer</button>
-      <button class="nav-item" data-view="stats">📊 Stats</button>
-      <button class="nav-item" data-view="settings">⚙️ Settings</button>
-    </nav>
-    <div class="sidebar-foot">
-      <div class="storage-info" id="storageInfo">— songs</div>
-    </div>
-  </aside>
-
-  <main class="main">
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <h1 id="viewTitle">All Songs</h1>
-        <p id="viewSub"></p>
+<div class="phone">
+  <main class="screens">
+    <!-- HOME -->
+    <section id="screen-home" class="screen active">
+      <div class="greet">
+        <div><h1 id="greetTitle">Hello 👋</h1><p>Find your vibe today</p></div>
+        <button id="homeSettings" class="glass-btn" title="Settings">⚙️</button>
       </div>
-      <div class="toolbar-right">
-        <select id="filterSelect" title="Filter">
-          <option value="all">All sources</option>
-          <option value="demo">Demo tracks</option>
-          <option value="local">My files</option>
-          <option value="fav">Favorites only</option>
-        </select>
-        <select id="sortSelect" title="Sort">
-          <option value="default">Sort: Default</option>
-          <option value="title">Title A–Z</option>
-          <option value="artist">Artist A–Z</option>
-          <option value="duration">Duration</option>
-          <option value="plays">Most played</option>
-          <option value="recent">Recently played</option>
-          <option value="added">Recently added</option>
-        </select>
-        <div class="view-toggle">
-          <button id="gridBtn" class="icon-btn" title="Grid view">▦</button>
-          <button id="listBtn" class="icon-btn active" title="List view">☰</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="chipsRow" class="chips"></div>
-
-    <!-- Views -->
-    <section id="view-all" class="view active">
-      <div id="songList" class="song-list"></div>
+      <div class="search-pill"><span>🔍</span><input id="searchInput" placeholder="Looking for..." autocomplete="off" /><button id="clearSearch" class="hidden">✕</button></div>
+      <div class="row-head"><h2>Popular Songs</h2><button id="seeAllPopular" class="link">See all</button></div>
+      <div id="popularRow" class="h-scroll"></div>
+      <div class="row-head"><h2>Your Playlists</h2><button id="seeAllPl" class="link">See all</button></div>
+      <div id="homePlaylists"></div>
+      <div class="row-head"><h2>Recently Played</h2></div>
+      <div id="homeRecent"></div>
+      <div style="height:14px"></div>
     </section>
 
-    <section id="view-favorites" class="view">
-      <div id="favList" class="song-list"></div>
+    <!-- NEW -->
+    <section id="screen-new" class="screen">
+      <div class="greet"><div><h1>New In ✨</h1><p>Fresh drops &amp; your uploads</p></div></div>
+      <button id="addMusicBtn2" class="neon-btn">＋ Add Music</button>
+      <div id="newList" class="v-list"></div>
+      <div style="height:14px"></div>
     </section>
 
-    <section id="view-recent" class="view">
-      <div id="recentList" class="song-list"></div>
-      <button id="clearRecentBtn" class="btn danger-outline">Clear history</button>
+    <!-- RADIO -->
+    <section id="screen-radio" class="screen center">
+      <div class="greet"><div><h1>Radio 📻</h1><p>Endless shuffle mix</p></div></div>
+      <div class="radio-art" id="radioArt">📻</div>
+      <div class="radio-meta"><b id="radioTitle">Nothing playing</b><span id="radioArtist">Tap play to start the mix</span></div>
+      <button id="radioToggle" class="radio-play">▶</button>
+      <div class="row-head" style="width:100%"><h2>Up next</h2></div>
+      <div id="radioNext" class="v-list" style="width:100%"></div>
     </section>
 
-    <section id="view-most" class="view">
-      <div id="mostList" class="song-list"></div>
-    </section>
-
-    <section id="view-queue" class="view">
-      <div class="queue-actions">
-        <button id="clearQueueBtn" class="btn ghost">Clear queue</button>
-        <button id="shuffleQueueBtn" class="btn ghost">🔀 Shuffle queue</button>
+    <!-- LIBRARY -->
+    <section id="screen-library" class="screen">
+      <div class="greet">
+        <div><h1>Library</h1><p id="libSub">Your collection</p></div>
+        <div class="row-btns"><button id="libAdd" class="glass-btn" title="Add music">＋</button><button id="libSettings" class="glass-btn" title="Settings">⚙️</button></div>
       </div>
-      <div id="queueList" class="song-list"></div>
-    </section>
-
-    <section id="view-playlist-detail" class="view">
-      <div class="playlist-head">
-        <div class="playlist-cover" id="plDetailCover">🎶</div>
-        <div>
-          <h2 id="plDetailName"></h2>
-          <p id="plDetailInfo"></p>
-          <div class="row gap">
-            <button id="plPlayAll" class="btn primary">▶ Play all</button>
-            <button id="plShuffleAll" class="btn">🔀 Shuffle</button>
-            <button id="plRename" class="btn ghost">✏️ Rename</button>
-            <button id="plDelete" class="btn danger-outline">🗑 Delete</button>
-          </div>
-        </div>
+      <div class="seg">
+        <button data-seg="songs" class="active">Songs</button>
+        <button data-seg="playlists">Playlists</button>
+        <button data-seg="liked">♥ Liked</button>
       </div>
-      <div id="plDetailList" class="song-list"></div>
-    </section>
-
-    <section id="view-equalizer" class="view">
-      <div class="card">
-        <h2>🎚️ 5-Band Equalizer</h2>
-        <p class="muted">Powered by Web Audio API. Works on PC + mobile browsers.</p>
-        <div class="eq-presets" id="eqPresets"></div>
-        <div class="eq-sliders" id="eqSliders"></div>
-        <div class="row gap">
-          <label class="switch"><input type="checkbox" id="eqEnabled" checked /> <span>Enable EQ</span></label>
-          <button id="eqReset" class="btn ghost">Reset</button>
-        </div>
-        <h3>Preamp / Balance</h3>
-        <div class="row gap wrap">
-          <label>Preamp <input type="range" id="preampGain" min="-12" max="12" value="0" step="1" /> <span id="preampVal">0 dB</span></label>
-          <label>Balance <input type="range" id="balanceGain" min="-50" max="50" value="0" /> <span id="balanceVal">Center</span></label>
-        </div>
-      </div>
-      <div class="card">
-        <h2>🎛️ Playback</h2>
-        <div class="row gap wrap">
-          <label>Speed <input type="range" id="speedRange" min="0.5" max="2" step="0.05" value="1" /> <span id="speedVal">1.00×</span></label>
-          <label>Crossfade <input type="range" id="crossfadeRange" min="0" max="8" step="1" value="0" /> <span id="crossfadeVal">Off</span></label>
-          <label class="switch"><input type="checkbox" id="gaplessChk" /> <span>Gapless (no delay)</span></label>
-        </div>
-      </div>
-    </section>
-
-    <section id="view-stats" class="view">
-      <div class="stats-grid" id="statsGrid"></div>
-      <div class="card">
-        <h3>Top 5 most played</h3>
-        <div id="topPlayed"></div>
-      </div>
-    </section>
-
-    <section id="view-settings" class="view">
-      <div class="card">
-        <h2>⚙️ Settings</h2>
-        <label>Accent color
-          <div class="colors" id="accentColors"></div>
-        </label>
-        <label class="switch"><input type="checkbox" id="setAutoplay" checked /> <span>Autoplay next on end</span></label>
-        <label class="switch"><input type="checkbox" id="setShowViz" checked /> <span>Show visualizer in player bar</span></label>
-        <label class="switch"><input type="checkbox" id="setConfirmDelete" checked /> <span>Confirm before delete</span></label>
-        <label class="switch"><input type="checkbox" id="setMediaSession" checked /> <span>Lock-screen / headset controls</span></label>
-        <div class="row gap wrap" style="margin-top:12px">
-          <button id="exportBtn" class="btn">⬇ Export library</button>
-          <button id="importBtn" class="btn">⬆ Import library</button>
-          <input type="file" id="importFile" accept="application/json" hidden />
-          <button id="resetBtn" class="btn danger-outline">Reset all data</button>
-        </div>
-      </div>
-      <div class="card">
-        <h2>⌨️ Shortcuts</h2>
-        <ul class="shortcuts">
-          <li><kbd>Space</kbd> play / pause</li>
-          <li><kbd>→</kbd> +10s &nbsp; <kbd>←</kbd> −10s</li>
-          <li><kbd>↑</kbd>/<kbd>↓</kbd> volume</li>
-          <li><kbd>N</kbd> next &nbsp; <kbd>P</kbd> previous</li>
-          <li><kbd>M</kbd> mute &nbsp; <kbd>S</kbd> shuffle &nbsp; <kbd>R</kbd> repeat &nbsp; <kbd>L</kbd> like &nbsp; <kbd>F</kbd> fullscreen player</li>
-        </ul>
-      </div>
-      <div class="card">
-        <h2>📦 About / APK</h2>
-        <p class="muted">This app is a PWA. Test it here on PC, then generate an APK with PWABuilder (no code change needed). Full steps in <b>README.md</b> and <b>BUILD-APK.md</b>.</p>
-      </div>
+      <div id="libSongs" class="v-list"></div>
+      <div id="libPlaylists" class="v-list hidden"></div>
+      <div id="libLiked" class="v-list hidden"></div>
+      <button id="newPlaylistBtn" class="neon-btn ghost hidden">＋ New Playlist</button>
+      <div style="height:14px"></div>
     </section>
   </main>
-</div>
 
-<!-- Mobile bottom nav -->
-<nav class="mobile-nav">
-  <button data-view="all" class="active">🎵<small>Songs</small></button>
-  <button data-view="favorites">❤️<small>Fav</small></button>
-  <button data-view="queue">📃<small>Queue</small></button>
-  <button data-view="equalizer">🎚️<small>EQ</small></button>
-  <button data-view="settings">⚙️<small>More</small></button>
-</nav>
+  <!-- MINI PLAYER -->
+  <div id="miniPlayer" class="mini hidden">
+    <div class="mini-cover" id="miniCover">♪</div>
+    <div class="mini-meta"><b id="miniTitle">—</b><span id="miniArtist">—</span></div>
+    <div class="mini-prog"><span id="miniProg"></span></div>
+    <button id="miniPlay" class="mini-btn">▶</button>
+    <button id="miniNext" class="mini-btn">⏭</button>
+  </div>
 
-<!-- Player bar -->
-<footer class="playerbar" id="playerbar">
-  <canvas id="miniViz" width="300" height="36" title="Visualizer"></canvas>
-  <div class="pb-left" id="pbExpand">
-    <div class="pb-cover" id="pbCover">🎵</div>
-    <div class="pb-meta">
-      <div class="pb-title" id="pbTitle">No song selected</div>
-      <div class="pb-artist" id="pbArtist">Pick a song to start</div>
-    </div>
-    <button id="pbLike" class="icon-btn" title="Like (L)">🤍</button>
-  </div>
-  <div class="pb-center">
-    <div class="pb-controls">
-      <button id="shuffleBtn" class="icon-btn" title="Shuffle (S)">🔀</button>
-      <button id="prevBtn" class="icon-btn big" title="Previous (P)">⏮</button>
-      <button id="playBtn" class="play-btn" title="Play/Pause (Space)">▶</button>
-      <button id="nextBtn" class="icon-btn big" title="Next (N)">⏭</button>
-      <button id="repeatBtn" class="icon-btn" title="Repeat (R)">🔁</button>
-    </div>
-    <div class="pb-seek">
-      <span id="curTime">0:00</span>
-      <input type="range" id="seekBar" min="0" max="1000" value="0" />
-      <span id="durTime">0:00</span>
-    </div>
-  </div>
-  <div class="pb-right">
-    <button id="speedBtn" class="icon-btn" title="Playback speed">1×</button>
-    <button id="sleepBtn" class="icon-btn" title="Sleep timer">😴</button>
-    <button id="queuePopBtn" class="icon-btn" title="Queue">📃</button>
-    <div class="vol">
-      <button id="muteBtn" class="icon-btn" title="Mute (M)">🔊</button>
-      <input type="range" id="volBar" min="0" max="100" value="90" />
-    </div>
-    <button id="fullBtn" class="icon-btn" title="Full player (F)">⛶</button>
-  </div>
-</footer>
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button data-tab="home" class="active"><span>⌂</span><small>Home</small></button>
+    <button data-tab="new"><span>✨</span><small>New</small></button>
+    <button data-tab="radio"><span>📻</span><small>Radio</small></button>
+    <button data-tab="library"><span>🎶</span><small>Library</small></button>
+  </nav>
 
-<!-- Fullscreen player -->
-<div id="fullPlayer" class="fullplayer hidden">
-  <canvas id="bigViz"></canvas>
-  <div class="fp-top">
-    <button id="fpClose" class="icon-btn">⬇</button>
-    <div class="fp-sub">NOW PLAYING</div>
-    <button id="fpMenu" class="icon-btn">⋮</button>
-  </div>
-  <div class="fp-cover" id="fpCover">🎵</div>
-  <h2 id="fpTitle">—</h2>
-  <p id="fpArtist" class="muted">—</p>
-  <div class="fp-seek">
-    <input type="range" id="fpSeek" min="0" max="1000" value="0" />
-    <div class="fp-times"><span id="fpCur">0:00</span><span id="fpDur">0:00</span></div>
-  </div>
-  <div class="fp-controls">
-    <button id="fpShuffle" class="icon-btn">🔀</button>
-    <button id="fpPrev" class="icon-btn big">⏮</button>
-    <button id="fpPlay" class="play-btn xl">▶</button>
-    <button id="fpNext" class="icon-btn big">⏭</button>
-    <button id="fpRepeat" class="icon-btn">🔁</button>
-  </div>
-  <div class="fp-row">
-    <button id="fpLike" class="btn ghost">🤍 Like</button>
-    <button id="fpLyricsBtn" class="btn ghost">📝 Lyrics</button>
-    <button id="fpAddPl" class="btn ghost">＋ Playlist</button>
-    <button id="fpShare" class="btn ghost">⤴ Share</button>
-  </div>
-  <div class="fp-tabs">
-    <button class="fp-tab active" data-tab="lyrics">Lyrics</button>
-    <button class="fp-tab" data-tab="upnext">Up Next</button>
-    <button class="fp-tab" data-tab="eq">EQ</button>
-  </div>
-  <div class="fp-panels">
-    <div id="fpPanel-lyrics" class="fp-panel active">
-      <pre id="fpLyrics">No lyrics yet. Tap Edit to add.</pre>
-      <button id="editLyricsBtn" class="btn">✏️ Edit lyrics</button>
+  <!-- FULL PLAYER -->
+  <div id="playerOverlay" class="player hidden">
+    <div class="pl-top"><button id="plBack" class="glass-btn">‹</button><button id="plMenu" class="glass-btn">⋮</button></div>
+    <div class="pl-art" id="plArt">♪</div>
+    <div class="pl-lyr" id="plLyrPreview">Tap 📝 below to add lyrics</div>
+    <div class="pl-title-row">
+      <div><h2 id="plTitle">—</h2><p id="plArtist">—</p></div>
+      <div class="row-btns"><button id="plLike" class="glass-btn">☆</button><button id="plQueueBtn" class="glass-btn">☰</button></div>
     </div>
-    <div id="fpPanel-upnext" class="fp-panel"><div id="fpUpNext" class="song-list compact"></div></div>
-    <div id="fpPanel-eq" class="fp-panel"><div id="fpEqMini" class="muted">Open Equalizer tab for full controls. Presets:</div><div class="eq-presets" id="eqPresetsMini"></div></div>
+    <div class="pl-seek"><input type="range" id="plSeek" min="0" max="1000" value="0" /><div class="pl-times"><span id="plCur">0:00</span><span id="plDur">0:00</span></div></div>
+    <div class="pl-controls">
+      <button id="plShuffle" class="pl-btn">🔀</button>
+      <button id="plPrev" class="pl-btn big">⏮</button>
+      <button id="plPlay" class="pl-play">▶</button>
+      <button id="plNext" class="pl-btn big">⏭</button>
+      <button id="plRepeat" class="pl-btn">🔁</button>
+    </div>
+    <div class="pl-vol"><span>🔈</span><input type="range" id="plVol" min="0" max="100" value="90" /><span>🔊</span></div>
+    <div class="pl-tools">
+      <button id="plLyricsBtn" class="glass-btn">📝</button>
+      <button id="plEqBtn" class="glass-btn">🎚️</button>
+      <button id="plSleepBtn" class="glass-btn">😴</button>
+    </div>
+  </div>
+
+  <!-- PLAYLIST PAGE -->
+  <div id="listOverlay" class="player hidden">
+    <div class="pl-top"><button id="listBack" class="glass-btn">‹</button><b id="listTitle">Playlist</b><span style="width:44px"></span></div>
+    <p id="listSub" class="muted center"></p>
+    <div class="row-btns center" style="justify-content:center;display:flex;gap:10px;margin-bottom:12px">
+      <button id="listPlayAll" class="neon-btn small">▶ Play all</button>
+      <button id="listShuffle" class="neon-btn small ghost">🔀 Shuffle</button>
+    </div>
+    <div id="listSongs" class="v-list"></div>
   </div>
 </div>
 
-<!-- Modals -->
-<div id="modalBack" class="modal-back hidden"><div class="modal" id="modalBox"></div></div>
+<!-- SHEET -->
+<div id="sheetBack" class="sheet-back hidden"><div class="sheet" id="sheetBox"></div></div>
 <div id="toastWrap" class="toasts"></div>
-<audio id="audio" preload="metadata"></audio>
+<input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.webm,.opus" multiple hidden />
+<input type="file" id="importFile" accept="application/json" hidden />
+<audio id="audio" crossorigin="anonymous" preload="metadata"></audio>
 
 <script src="app.js"></script>
 <script>
