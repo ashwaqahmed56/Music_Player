@@ -1,4 +1,4 @@
-const APP_VERSION='2.3';
+const APP_VERSION='2.4';
 /* Ash's Player — clean black and white edition. Sound fix: audio uses CORS + WebAudio graph with fallback. */
 'use strict';
 const $ = (s) => document.querySelector(s);
@@ -23,7 +23,7 @@ const EQ_PRESETS = { 'Normal':[0,0,0,0,0], 'Pop':[-1,2,4,2,-1], 'Rock':[4,3,-1,3
 /* ---------- store (same key as v1 so likes/playlists survive the update) ---------- */
 function defStore(){ return {
   likes:[], playlists:[], folders:[], recents:[], playCounts:{}, addedAt:{}, lyrics:{},
-  volumes:{vol:100}, prefs:{shuffle:false, repeat:'off', speed:1, autoplay:true, theme:'dark', songSort:'az', newSort:'new'},
+  volumes:{vol:100}, prefs:{shuffle:false, repeat:'off', speed:1, autoplay:true, theme:'dark', songSort:'az', newSort:'new', notif:false},
   eq:{enabled:true, gains:[0,0,0,0,0], preset:'Normal'},
   localMeta:{}, customTitles:{}, currentId:null, radio:false
 };}
@@ -334,7 +334,7 @@ function mcHandle(message){
 function syncNotif(){
   mediaSession(); // browser / PWA path
   try{
-    const MC=mcPlugin(); if(!MC) return;
+    const MC=mcPlugin(); if(!MC||!store.prefs.notif) return;
     const t=getT(currentId);
     if(!t){ try{ const r=MC.destroy(); r&&r.catch&&r.catch(()=>{}); }catch(e){} _notifState=''; return; }
     const playing=!audio.paused, key=t.id+(playing?'1':'0');
@@ -376,7 +376,7 @@ function songMenu(id){ const t=getT(id); if(!t) return; const liked=store.likes.
   ${t.source==='local'?'<button class="opt danger" id="mDel">Delete from library</button>':''}
   <button class="opt" id="mX">Close</button>`);
   $('#mX').onclick=closeSheet;
-  $('#mPlay').onclick=()=>{ closeSheet(); playTrack(id); };
+  $('#mPlay').onclick=()=>{ closeSheet(); playTrack(id,{open:true}); };
   $('#mNext').onclick=()=>{ queue.unshift(id); closeSheet(); render(); toast('Plays next'); };
   $('#mQueue').onclick=()=>{ queue.push(id); closeSheet(); render(); toast('Added to queue'); };
   $('#mLike').onclick=()=>{ const i=store.likes.indexOf(id); i>=0?store.likes.splice(i,1):store.likes.push(id); save(); closeSheet(); render(); };
@@ -424,7 +424,7 @@ async function settingsSheet(){
   sheet(`<h2>Settings</h2>  <h3>Theme</h3><div class="chips"><button data-th="dark" class="${store.prefs.theme!=='light'?'active':''}">Dark</button><button data-th="light" class="${store.prefs.theme==='light'?'active':''}">Light</button></div>
   <h3>Playback</h3><div class="eq-row"><label>Speed</label><input type="range" id="sSp" min="0.5" max="2" step="0.05" value="${store.prefs.speed}"/><span>${(+store.prefs.speed).toFixed(2)}x</span></div>
   <div class="chips"><button id="sSpR">Reset speed to 1.00x</button></div>
-  <h3>Notifications</h3><p class="muted" id="diagLine" style="font-size:13px">Checking…</p>
+  <h3>Notifications</h3><label class="switch"><input type="checkbox" id="sNotif" ${store.prefs.notif?'checked':''}/> Lock-screen controls (needs app restart of song)</label><p class="muted" id="diagLine" style="font-size:13px">Checking…</p>
   <label class="switch"><input type="checkbox" id="sAu" ${store.prefs.autoplay?'checked':''}/> Autoplay next song</label>
   <h3>Library</h3><button class="opt" id="sEx">Export backup</button><button class="opt" id="sIm">Import backup</button><button class="opt danger" id="sRe">Reset everything</button>
   <p class="muted">Ash's Player v${APP_VERSION} · black and white · offline ready</p><button class="opt" id="sX">Close</button>`);
@@ -432,6 +432,7 @@ async function settingsSheet(){
   $$('#sheetBox [data-th]').forEach(b=>b.onclick=()=>{ store.prefs.theme=b.dataset.th; save(); settingsSheet(); render(); });
   $('#sSp').oninput=e=>{ store.prefs.speed=+e.target.value; audio.playbackRate=store.prefs.speed; e.target.nextElementSibling.textContent=store.prefs.speed.toFixed(2)+'×'; save(); };
   $('#sSpR').onclick=()=>{ store.prefs.speed=1; audio.playbackRate=1; save(); settingsSheet(); render(); toast('Speed reset to 1x'); };
+  $('#sNotif').onchange=e=>{ store.prefs.notif=e.target.checked; save(); _notifState=''; render(); toast(store.prefs.notif?'Lock-screen controls on':'Lock-screen controls off'); };
   try{
     const C=window.Capacitor, native=!!(C&&C.isNativePlatform&&C.isNativePlatform());
     const hasMC=!!(C&&C.Plugins&&(C.Plugins.CapacitorMusicControls||C.Plugins.MusicControls));
@@ -524,9 +525,9 @@ async function handleFiles(files, folderHint, opts){
   if(!(opts&&opts.quiet)) toast(imported+' song'+(imported===1?'':'s')+' added to '+folderName+(skipped?' · '+skipped+' skipped':'')); }
 function addMenu(){ sheet(`<h2>Add music</h2><p class="muted">Stays on your device · plays offline forever</p>
   ${window.showDirectoryPicker?'<button class="opt" id="aAuto">Scan a whole folder at once</button>':''}
-  <button class="opt" id="aFolder">Choose a whole folder (kept separate)</button>
+  <button class="opt" id="aFolder">Choose songs from a folder (then Select-all)</button>
   <button class="opt" id="aSongs">Choose songs (pick many at once)</button>
-  <p class="muted" style="font-size:12.5px">Open a folder and select everything at once (use Select-all in the picker). Google Drive sends one song at a time — download songs to your device first. You can pick repeatedly; everything lands in the same folder.</p>
+  <p class="muted" style="font-size:12.5px">Open a folder, long-press one song (or use Select-all) to grab everything at once. Google Drive sends one song at a time — download songs to your device first. You can pick repeatedly; everything lands in the same folder.</p>
   <button class="opt" id="aX">Close</button>`);
   $('#aX').onclick=closeSheet;
   const au=$('#aAuto'); if(au) au.onclick=()=>{ closeSheet(); pickWatchFolder(); };
@@ -568,7 +569,8 @@ async function scanAndImport(dir, folderName){
 async function nativeOr(fallback){
   try{ const C=window.Capacitor;
     if(C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.FilePicker){
-      const r=await C.Plugins.FilePicker.pickFiles({limit:100});
+      // NOTE: pass NO limit — this plugin enables multi-select ONLY when limit is 0/unset
+      const r=await C.Plugins.FilePicker.pickFiles();
       const picked=r.files||[];
       if(!picked.length) return;
       toast('Importing '+picked.length+' files…');
