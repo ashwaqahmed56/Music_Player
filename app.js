@@ -42,9 +42,18 @@ const getT = (id)=>cache.find(t=>t.id===id);
 const all = ()=>cache;
 
 /* ---------- IndexedDB ---------- */
-function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('nova_music_db',1);
-  r.onupgradeneeded=()=>r.result.createObjectStore('files',{keyPath:'id'});
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('nova_music_db',2);
+  r.onupgradeneeded=()=>{ const db=r.result;
+    if(!db.objectStoreNames.contains('files')) db.createObjectStore('files',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('meta')) db.createObjectStore('meta',{keyPath:'key'});
+  };
   r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function metaGet(k){ const db=await idb();
+  return new Promise((res,rej)=>{ const q=db.transaction('meta','readonly').objectStore('meta').get(k);
+    q.onsuccess=()=>res(q.result?q.result.value:undefined); q.onerror=()=>rej(q.error); }); }
+async function metaSet(k,v){ const db=await idb();
+  return new Promise((res,rej)=>{ const tx=db.transaction('meta','readwrite'); tx.objectStore('meta').put({key:k,value:v});
+    tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); }
 async function idbPut(o){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction('files','readwrite'); tx.objectStore('files').put(o); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); }
 async function idbAll(){ const db=await idb(); return new Promise((res,rej)=>{ const q=db.transaction('files','readonly').objectStore('files').getAll(); q.onsuccess=()=>res(q.result||[]); q.onerror=()=>rej(q.error); }); }
 async function idbDel(id){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction('files','readwrite'); tx.objectStore('files').delete(id); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); }
@@ -106,7 +115,7 @@ const ICONS={
 /* ---------- playback ---------- */
 function playTrack(id, opts){
   const t=getT(id); if(!t) return;
-  ensureGraph();
+  ensureGraph(); ensureNotifPerm();
   if(audio.src!==t.src){ audio.src=t.src; audio.crossOrigin='anonymous'; }
   audio.playbackRate=store.prefs.speed||1;
   if(opts && opts.open){ $('#listOverlay').classList.add('hidden'); $('#playerOverlay').classList.remove('hidden'); }
@@ -202,6 +211,16 @@ function render(){
   store.playlists.forEach(pl=>lp.appendChild(plRow(pl)));
   $('#newPlaylistBtn').classList.toggle('hidden', libSeg!=='playlists');
   const lf=$('#libFolders'); lf.innerHTML='';
+  if(store.watchFolder){ const rb=document.createElement('button'); rb.className='neon-btn ghost'; rb.textContent='Rescan '+store.watchFolder.name;
+    rb.onclick=async()=>{ try{
+        const dir=await metaGet('watchHandle');
+        if(dir&&window.showDirectoryPicker){
+          if(await dir.requestPermission({mode:'read'})==='granted'){ toast('Scanning '+store.watchFolder.name+'…'); await scanAndImport(dir, store.watchFolder.name); return; }
+          return;
+        }
+      }catch(e){}
+      pickWatchFolder(); };
+    lf.appendChild(rb); }
   if(!store.folders.length) lf.innerHTML='<p class="muted center">No folders yet — tap + and pick a folder</p>';
   store.folders.forEach(f=>{ const ts=f.trackIds.map(getT).filter(Boolean);
     const tot=ts.reduce((a,t)=>a+(t.duration||0),0);
@@ -263,6 +282,14 @@ function plRow(pl){
   d.onclick=()=>openPlaylist(pl.id); return d;
 }
 
+/* ---------- notification permission (Android 13+) ---------- */
+async function ensureNotifPerm(){
+  try{ const C=window.Capacitor; if(!C?.isNativePlatform?.()) return;
+    const LN=C.Plugins?.LocalNotifications; if(!LN) return;
+    let st={display:'prompt'}; try{ st=await LN.checkPermissions(); }catch(e){}
+    if(st.display!=='granted'){ try{ await LN.requestPermissions(); }catch(e){} }
+  }catch(e){}
+}
 /* ---------- Android system back button (native app) ---------- */
 function nativeBack(){
   try{
@@ -406,7 +433,7 @@ function openPlaylist(pid){ const pl=store.playlists.find(p=>p.id===pid); if(!pl
   pl.trackIds.map(getT).filter(Boolean).forEach(t=>el.appendChild(trackRow(t)));
   $('#listOverlay').classList.remove('hidden'); }
 function openFolder(fid){ const f=store.folders.find(x=>x.id===fid); if(!f) return; activeCol={type:'fo',id:fid};
-  $('#listTitle').textContent='📁 '+f.name;
+  $('#listTitle').textContent=f.name;
   const ts=f.trackIds.map(getT).filter(Boolean);
   const tot=ts.reduce((a,t)=>a+(t.duration||0),0);
   $('#listSub').textContent=ts.length+' songs'+(tot?' · '+fmt(tot):'');
@@ -419,17 +446,18 @@ function openFolder(fid){ const f=store.folders.find(x=>x.id===fid); if(!f) retu
       store.likes=store.likes.filter(x=>x!==tid);
       store.playlists.forEach(p=>p.trackIds=p.trackIds.filter(x=>x!==tid)); }
     store.folders=store.folders.filter(x=>x.id!==fid);
+    if(store.watchFolder&&store.watchFolder.name===f.name){ store.watchFolder=null; metaSet('watchHandle',null).catch(()=>{}); }
     if(currentId&&f.trackIds.includes(currentId)){ audio.pause(); currentId=null; store.currentId=null; }
-    await loadLocal(); save(); $('#listOverlay').classList.add('hidden'); render(); toast('Folder removed 🗑'); };
+    await loadLocal(); save(); $('#listOverlay').classList.add('hidden'); render(); toast('Folder removed'); };
   el.appendChild(del);
   $('#listOverlay').classList.remove('hidden'); }
 
 /* ---------- files & folders ---------- */
 function folderOf(entry){ const p=entry.path||''; if(p&&p.includes('/')) return p.split('/')[0]; return ''; }
-async function handleFiles(files, folderHint){
+async function handleFiles(files, folderHint, opts){
   const norm=[...files].map(f=> f instanceof Blob
-    ? { name:f.name||'song', blob:f, path:f.webkitRelativePath||'' }
-    : { name:f.name||'song', blob:f.blob||f, path:'' });
+    ? { name:f.name||'song', blob:f, path:f.webkitRelativePath||'', size:f.size||0 }
+    : { name:f.name||'song', blob:f.blob||f, path:'', size:f.size||f.blob?.size||0 });
   const arr=norm.filter(f=>(f.blob?.type||'').startsWith('audio')||/\.(mp3|wav|ogg|m4a|flac|webm|opus)$/i.test(f.name));
   if(!arr.length) return toast('No audio files found');
   const folderName = folderHint || folderOf(arr[0]) || 'My Music';
@@ -440,18 +468,62 @@ async function handleFiles(files, folderHint){
     let title=f.name.replace(/\.[^.]+$/,''), artist=folderName;
     try{ const tg=await readTags(f.blob); if(tg.title) title=tg.title; if(tg.artist) artist=tg.artist; }catch(e){}
     const dur=await probeDur(f.blob).catch(()=>0);
-    await idbPut({id,name:f.name,title,artist,blob:f.blob,folder:folderName,duration:dur});
+    await idbPut({id,name:f.name,title,artist,blob:f.blob,folder:folderName,duration:dur,size:f.size||0});
     store.addedAt[id]=Date.now(); folder.trackIds.push(id);
   }
   save(); await loadLocal(); save(); render(); segTo('folders'); tab('library');
-  toast(arr.length+' song'+(arr.length>1?'s':'')+' → 📁 '+folderName); }
+  if(!(opts&&opts.quiet)) toast(arr.length+' song'+(arr.length>1?'s':'')+' added to '+folderName); }
 function addMenu(){ sheet(`<h2>Add music</h2><p class="muted">Stays on your device · plays offline forever</p>
+  ${window.showDirectoryPicker?'<button class="opt" id="aAuto">Auto-scan a folder (remembers it)</button>':''}
   <button class="opt" id="aFolder">Choose a whole folder (kept separate)</button>
   <button class="opt" id="aSongs">Choose songs</button>
+  <p class="muted" style="font-size:12.5px">Tip: Google Drive sends one song at a time — download songs to your device first, then pick. You can pick repeatedly; everything lands in the same folder.</p>
   <button class="opt" id="aX">Close</button>`);
   $('#aX').onclick=closeSheet;
+  const au=$('#aAuto'); if(au) au.onclick=()=>{ closeSheet(); pickWatchFolder(); };
   $('#aFolder').onclick=()=>{ closeSheet(); nativeOr(()=>$('#folderInput').click()); };
   $('#aSongs').onclick=()=>{ closeSheet(); nativeOr(()=>$('#fileInput').click()); }; }
+/* ---------- auto-scan remembered folder ---------- */
+async function pickWatchFolder(){
+  if(!window.showDirectoryPicker){ $('#folderInput').click(); return; }
+  try{
+    const dir=await window.showDirectoryPicker({mode:'read'});
+    await metaSet('watchHandle',dir);
+    store.watchFolder={name:dir.name}; save(); render();
+    toast('Scanning '+dir.name+'…');
+    await scanAndImport(dir, dir.name);
+  }catch(e){ if(e?.name!=='AbortError') toast('Could not read that folder'); }
+}
+async function scanAndImport(dir, folderName){
+  const files=[];
+  async function walk(handle){
+    for await (const entry of handle.values()){
+      if(entry.kind==='file'){
+        try{ const f=await entry.getFile();
+          if((f.type||'').startsWith('audio')||/\.(mp3|wav|ogg|m4a|flac|webm|opus)$/i.test(f.name))
+            files.push({name:f.name, blob:f, path:'', size:f.size||0});
+        }catch(e){}
+        if(files.length>800) return;
+      } else if(entry.kind==='directory'){ try{ await walk(entry); }catch(e){} }
+    }
+  }
+  try{ await walk(dir); }catch(e){ toast('Scan stopped'); return 0; }
+  if(!files.length){ toast('No songs found in '+folderName); return 0; }
+  let have=new Set();
+  try{ (await idbAll()).forEach(r=>{ if(r.folder===folderName) have.add(r.name+'|'+(r.size||0)); }); }catch(e){}
+  const fresh=files.filter(f=>!have.has(f.name+'|'+(f.size||0)));
+  if(!fresh.length){ toast(folderName+' is already up to date'); return 0; }
+  await handleFiles(fresh, folderName, {quiet:true});
+  toast(fresh.length+' new song'+(fresh.length>1?'s':'')+' added from '+folderName);
+  return fresh.length;
+}
+async function autoScan(){
+  if(!store.watchFolder || !window.showDirectoryPicker) return;
+  try{
+    const dir=await metaGet('watchHandle'); if(!dir) return;
+    if(await dir.queryPermission({mode:'read'})==='granted') await scanAndImport(dir, store.watchFolder.name);
+  }catch(e){}
+}
 /* native (Capacitor) file picker with browser fallback */
 async function nativeOr(fallback){
   try{ const C=window.Capacitor;
@@ -531,8 +603,9 @@ function segTo(s){ libSeg=s; $$('.seg button').forEach(b=>b.classList.toggle('ac
 (async function(){
   DEMO.forEach((d,i)=>{ if(!store.addedAt[d.id]) store.addedAt[d.id]=Date.now()-(100-i)*60000; });
   rebuild(); bind(); render();
-  audio.volume=1;
+  audio.volume=1; ensureNotifPerm();
   await loadLocal(); render();
+  autoScan();
   if(!navigator.onLine) setTimeout(()=>toast('Offline mode — your music plays without internet'),900);
   if(currentId&&getT(currentId)){ audio.src=getT(currentId).src; audio.playbackRate=store.prefs.speed||1; render(); }
   console.log('%cAsh\'s Player ready — '+all().length+' tracks','color:#00f0ff;font-weight:bold');

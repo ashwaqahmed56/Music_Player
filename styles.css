@@ -179,7 +179,8 @@ button{font-family:inherit; touch-action:manipulation}
 }
 .pl-tools{display:flex; justify-content:center; gap:14px; margin-top:12px}
 /* range styling: mono */
-input[type=range]{-webkit-appearance:none; appearance:none; height:6px; border-radius:99px; background:var(--glass2); outline:none; cursor:pointer}
+input[type=range]{-webkit-appearance:none; appearance:none; height:8px; border-radius:99px; background:rgba(255,255,255,.34); outline:none; cursor:pointer}
+[data-theme="light"] input[type=range]{background:rgba(13,20,60,.32)}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:var(--btn); border:2px solid var(--bg); box-shadow:var(--shadow-sm); cursor:pointer}
 input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:var(--btn); border:2px solid var(--bg); box-shadow:var(--shadow-sm)}
 /* SVG icons */
