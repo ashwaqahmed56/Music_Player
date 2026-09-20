@@ -1,42 +1,33 @@
-# 📲 Convert Nova Player to APK — 3 methods
+# 📲 Nova APK — standalone (Capacitor) + old PWA method
 
-## Method 1 — PWABuilder (easiest, recommended, no Android Studio)
+## Recommended: standalone offline APK (free cloud build, no installs)
 
-1. **Push this repo to GitHub** (already linked: `https://github.com/ashwaqahmed56/Music_Player`)
-2. **Host with HTTPS** (pick one, free):
-   - GitHub Pages: repo → Settings → Pages → Deploy from branch → `master`/`main` → `/ (root)` → Save. URL = `https://ashwaqahmed56.github.io/Music_Player/`
-   - Or drag this folder to https://app.netlify.com/drop → get `https://xxx.netlify.app`
-3. Go to **https://www.pwabuilder.com** → paste your HTTPS URL → **Start** → fix any warnings (icons/manifest already OK) → **Package For Android** → **Download APK / AAB**
-4. Transfer APK to phone → tap → **Install** (allow “Install unknown apps” once)
-5. For Play Store: upload the `.aab` from the same download.
+Your app is now packaged with **Capacitor**: HTML/CSS/JS bundled *inside* a
+native Android app. Opens instantly, works fully offline, no browser, no URL.
 
-Requirements: site must be HTTPS + manifest + service worker + icons — all included ✅
+1. **Upload to GitHub** — all files including `.github/workflows/android.yml`,
+   `package.json`, `capacitor.config.json`. Do NOT upload `node_modules`,
+   `www`, APKs, or `signing.keystore` (gitignore already blocks them).
+2. **Actions tab** → enable workflows if asked → select **Build Nova APK** →
+   **Run workflow** (it also runs automatically on every push). Takes ~3–5 min.
+3. Open the finished run → **Artifacts** → download **Nova-debug-apk**.
+4. Copy the APK to your phone → tap → Install (allow unknown apps once).
+5. **Uninstall the old PWABuilder (TWA) version first** — debug builds use a
+   different signature, Android won't install over it.
 
-## Method 2 — Capacitor (native shell, needs Android Studio + Java)
+### Make it a signed release with YOUR key (optional, later)
+So updates install seamlessly + Play Store accepts it:
+1. Repo → Settings → Secrets and variables → Actions → New secret:
+   - `KEYSTORE_B64` = base64 of your `signing.keystore`
+     (`certutil -encode signing.keystore tmp.txt` on Windows, paste content)
+   - `KEY_ALIAS` = `my-key-alias`, `KEYSTORE_PASS` and `KEY_PASS` = `Ngy1Wts7Z6Ml`
+     (from your `signing-key-info.txt` — or your own values)
+2. In `.github/workflows/android.yml`, change `assembleDebug` → `assembleRelease`
+   and add a signing step using those secrets (standard `gradle` signing config),
+   artifact path becomes `android/app/build/outputs/apk/release/app-release.apk`.
 
-```powershell
-npm.cmd install -g @capacitor/cli
-npm.cmd init -y
-npm.cmd install @capacitor/core @capacitor/android
-npx cap init NovaPlayer com.nova.player --web-dir=.
-npx cap add android
-npx cap copy
-# open in Android Studio:
-npx cap open android
-# then Build > Build APK(s)
-```
-
-## Method 3 — Online wrapper (no hosting needed)
-- https://median.co / https://appsgeyser.com / https://gonative.io
-- Upload ZIP of this folder or paste hosted URL → Generate APK.
-
-## ✅ Pre-APK checklist
-- [ ] Test on PC: play, queue, EQ, sleep, lyrics, upload local MP3, light/dark
-- [ ] Test on phone browser first (same URL) — audio + lock-screen controls
-- [ ] App name/icon correct (edit `manifest.json` if needed)
-- [ ] HTTPS works (PWABuilder score ≥ green)
-
-## 📝 Notes
-- Local files added on phone stay on that phone (IndexedDB) — APK behaves the same as browser.
-- Demo tracks need internet (stream). Your own uploaded files play offline.
-- Signed APK for Play Store: PWABuilder signs it, or use Android Studio → Generate Signed Bundle.
+## Old method: PWABuilder TWA (website wrapper — needs internet)
+Only if you want the URL-based version: host on Pages → pwabuilder.com →
+paste URL → Package for Android reusing `signing.keystore`. Note: first launch
+needs internet and it behaves like a browser tab without `assetlinks.json`
+hosted (`.well-known/assetlinks.json` + `.nojekyll` in this repo fix that).

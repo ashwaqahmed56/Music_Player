@@ -1,0 +1,10 @@
+{
+  "appId": "io.github.ashwaqahmed56.twa",
+  "appName": "Nova",
+  "webDir": "www",
+  "backgroundColor": "#070b1a",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true
+  }
+}

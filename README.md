@@ -1,26 +1,40 @@
-# 🎧 Nova Music Player (v2 — neon mobile edition)
+# 🎧 Nova Music Player (v2.1 — standalone offline app)
 
-Simple, mobile-first music player. Dark neon design, 4 tabs, nothing confusing.
+Simple, mobile-first music player. Now a **real standalone APK**: app files live
+*inside* the app — it opens instantly with **zero internet**.
 
 ## ✨ What's inside
-- 🏠 **Home** — greeting, search, Popular Songs cards, playlists, recently played
-- ✨ **New** — latest additions + Add Music button
-- 📻 **Radio** — endless shuffle mix, tap once and it keeps playing
-- 🎶 **Library** — Songs / Playlists / ♥ Liked + Add Music
-- ▶ Full player — big art, progress, shuffle/repeat, volume, lyrics, EQ, sleep timer, queue
-- 🎚️ Equalizer with presets, 📝 lyrics, 😴 sleep timer, ☆ favorites, 🎶 playlists
-- 📁 Your own MP3/WAV/OGG/M4A files (saved on-device, play offline)
-- 📲 PWA + APK ready, 🔒 everything stays on your device
+- 🏠 **Home** — greeting, search, Popular Songs, playlists, recently played
+- ✨ **New** — latest additions + Add Music
+- 📻 **Radio** — endless shuffle mix
+- 🎶 **Library** — Songs / 📁 Folders / Playlists / ♥ Liked
+- 📁 **Folder import** — pick a whole folder, its songs stay grouped separately
+  with counts + total time, play-all/shuffle per folder, remove folder anytime
+- ▶ Full player — big art, progress, shuffle/repeat, volume, lyrics, EQ, sleep, queue
+- 🎚️ Equalizer, 📝 lyrics, 😴 sleep timer, ☆ favorites
+- 📴 **Fully offline** — your songs play without internet (📶 badge = demo songs
+  that need internet; everything you add works offline)
+- 🔒 Everything stays on your device
 
 ## 🖥️ Test on PC
-Double-click `start-pc.bat`, open `http://localhost:8000` (page shows a phone-size column — that's normal).
+Double-click `start-pc.bat` → `http://localhost:8000` (phone-size column is normal).
 
-## 📲 Build / update the APK
-1. Upload all files to GitHub (drag-drop), including `.well-known/assetlinks.json` and `.nojekyll`
-2. Enable Pages (`master` / root) → `https://ashwaqahmed56.github.io/Music_Player/`
-3. **Important:** host `assetlinks.json` so the app opens fullscreen with no browser bar (the `.well-known` folder + `.nojekyll` do this)
-4. PWABuilder → paste URL → **Package for Android** → reuse your existing `signing.keystore` (passwords in `signing-key-info.txt`) so the new version installs as an **update** instead of a separate app
-5. Install the new APK on your phone (keep the keystore backed up forever)
+## 📲 Get the standalone APK (free, no Android Studio)
+1. Upload **all** files to GitHub (including the `.github` folder — see note below).
+   **Never** upload `node_modules`, `www`, APKs or `signing.keystore`.
+2. Repo → **Actions** tab → enable workflows → run **"Build Nova APK"**
+   (also auto-runs on every push). ~3–5 min.
+3. Download the **Nova-debug-apk** artifact → copy to phone → install.
+   - Uninstall the old PWABuilder version first (different signature).
+   - To keep the Play-Store key later: add your `signing.keystore` as repo
+     secrets and switch the workflow to `assembleRelease` (see BUILD-APK.md).
+
+> **Uploading dot-folders:** GitHub's web upload sometimes hides `.github` /
+> `.well-known`. If they don't appear after drag-drop: repo → Add file →
+> Create new file → type `.github/workflows/android.yml` → paste the file
+> content → Commit. Same trick for `.well-known/assetlinks.json` and `.nojekyll`.
 
 ## 📁 Files
-`index.html` · `styles.css` · `app.js` · `manifest.json` · `sw.js` · `icon.svg` · `icon-192.png` · `icon-512.png` · `.well-known/assetlinks.json` · `.nojekyll` · `BUILD-APK.md` · `start-pc.bat`
+`index.html` · `styles.css` · `app.js` · `package.json` · `capacitor.config.json` ·
+`.github/workflows/android.yml` · `manifest.json` · `sw.js` · icons ·
+`.well-known/assetlinks.json` · `.nojekyll` · `BUILD-APK.md` · `start-pc.bat`

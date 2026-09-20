@@ -62,10 +62,12 @@
       </div>
       <div class="seg">
         <button data-seg="songs" class="active">Songs</button>
+        <button data-seg="folders">📁 Folders</button>
         <button data-seg="playlists">Playlists</button>
         <button data-seg="liked">♥ Liked</button>
       </div>
       <div id="libSongs" class="v-list"></div>
+      <div id="libFolders" class="v-list hidden"></div>
       <div id="libPlaylists" class="v-list hidden"></div>
       <div id="libLiked" class="v-list hidden"></div>
       <button id="newPlaylistBtn" class="neon-btn ghost hidden">＋ New Playlist</button>
@@ -131,6 +133,7 @@
 <div id="sheetBack" class="sheet-back hidden"><div class="sheet" id="sheetBox"></div></div>
 <div id="toastWrap" class="toasts"></div>
 <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.webm,.opus" multiple hidden />
+<input type="file" id="folderInput" webkitdirectory hidden />
 <input type="file" id="importFile" accept="application/json" hidden />
 <audio id="audio" crossorigin="anonymous" preload="metadata"></audio>
 
