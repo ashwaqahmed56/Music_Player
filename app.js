@@ -169,7 +169,7 @@ function searchFilter(list){ const q=($('#searchInput').value||'').toLowerCase()
   if(!q) return list; return list.filter(t=>(t.title+' '+t.artist+' '+(t.album||'')).toLowerCase().includes(q)); }
 function trackRow(t){
   const d=document.createElement('div'); d.className='track'+(t.id===currentId?' playing':'');
-  d.innerHTML=`${artHTML(t,'t-art')}<div class="t-meta"><b>${esc(t.title)}</b><span>${esc(t.artist)}${t.duration?' · '+fmt(t.duration):''}${t.source==='demo'?' · online':''}</span></div><button class="t-menu">⋮</button>`;
+  d.innerHTML=`${artHTML(t,'t-art')}<div class="t-meta"><b>${esc(t.title)}</b><span>${esc(t.artist)}${t.duration?' · '+fmt(t.duration):''}</span></div><button class="t-menu">⋮</button>`;
   d.onclick=()=>playTrack(t.id,{open:true});
   d.querySelector('.t-menu').onclick=(e)=>{ e.stopPropagation(); songMenu(t.id); };
   return d;
@@ -521,7 +521,7 @@ function addMenu(){ sheet(`<h2>Add music</h2><p class="muted">Stays on your devi
   ${window.showDirectoryPicker?'<button class="opt" id="aAuto">Scan a whole folder at once</button>':''}
   <button class="opt" id="aFolder">Choose a whole folder (kept separate)</button>
   <button class="opt" id="aSongs">Choose songs (pick many at once)</button>
-  <p class="muted" style="font-size:12.5px">Tip: open your Download folder and select everything in one go. Google Drive sends one song at a time — download songs to your device first. You can pick repeatedly; everything lands in the same folder.</p>
+  <p class="muted" style="font-size:12.5px">Open a folder and select everything at once (use Select-all in the picker). Google Drive sends one song at a time — download songs to your device first. You can pick repeatedly; everything lands in the same folder.</p>
   <button class="opt" id="aX">Close</button>`);
   $('#aX').onclick=closeSheet;
   const au=$('#aAuto'); if(au) au.onclick=()=>{ closeSheet(); pickWatchFolder(); };
@@ -559,18 +559,31 @@ async function scanAndImport(dir, folderName){
   toast(fresh.length+' new song'+(fresh.length>1?'s':'')+' added from '+folderName);
   return fresh.length;
 }
-/* native (Capacitor) file picker with browser fallback */
+/* native (Capacitor) file picker: system picker, multi-select, streams from disk */
 async function nativeOr(fallback){
   try{ const C=window.Capacitor;
-    if(C?.isNativePlatform?.() && C.Plugins?.FilePicker){
-      const r=await C.Plugins.FilePicker.pickFiles({limit:100, multiple:true, readData:true});
-      const files=(r.files||[]).filter(x=>x.data).map(x=>({name:x.name||'song.mp3', blob:b64ToBlob(x.data, x.mimeType||'audio/mpeg')}));
-      if(files.length){ handleFiles(files); return; }
+    if(C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.FilePicker){
+      const r=await C.Plugins.FilePicker.pickFiles({limit:100});
+      const picked=r.files||[];
+      if(!picked.length) return;
+      toast('Importing '+picked.length+' files…');
+      const out=[];
+      for(const x of picked){
+        try{
+          let blob=x.blob||null;
+          if(!blob && x.webPath){ const resp=await fetch(x.webPath); if(resp.ok) blob=await resp.blob(); }
+          if(!blob && x.path && C.convertFileSrc){ try{ const resp=await fetch(C.convertFileSrc(x.path)); if(resp.ok) blob=await resp.blob(); }catch(e){} }
+          if(!blob) continue;
+          const name=x.name||('song'+(out.length+1)+'.mp3');
+          if(!/\.(mp3|wav|ogg|m4a|flac|webm|opus)$/i.test(name) && !(blob.type||'').startsWith('audio')) continue;
+          out.push({name:name, blob:blob, path:'', size:blob.size||0});
+        }catch(e){}
+      }
+      if(out.length){ handleFiles(out); return; }
+      toast('No songs found in that selection'); return;
     }
   }catch(e){ console.warn('native pick failed, using browser', e); }
   fallback(); }
-function b64ToBlob(b64, mime){ const bin=atob(b64); const u8=new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); return new Blob([u8],{type:mime}); }
 function readTags(f){ return new Promise(res=>{ if(!window.jsmediatags) return res({});
   try{ window.jsmediatags.read(f,{onSuccess:t=>{const g=t.tags||{};const o={title:g.title,artist:g.artist};
     if(g.picture?.data){ try{ let b=''; g.picture.data.forEach(v=>b+=String.fromCharCode(v)); o.coverUrl=`data:${g.picture.format};base64,${btoa(b)}`;}catch(e){} } res(o);},onError:()=>res({})});
@@ -582,7 +595,7 @@ function probeDur(f){ return new Promise(res=>{ const u=URL.createObjectURL(f); 
 function bind(){
   $$('.bottom-nav button').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
   $('#homeSettings').onclick=settingsSheet; $('#libSettings').onclick=settingsSheet;
-  $$('.themeToggle').forEach(b=>b.onclick=()=>{ store.prefs.theme=store.prefs.theme==='light'?'dark':'light'; save(); render(); toast(store.prefs.theme==='light'?'Light mode':'Dark mode'); });
+  $$('.themeToggle').forEach(b=>b.onclick=()=>{ store.prefs.theme=store.prefs.theme==='light'?'dark':'light'; save(); render(); });
   $('#seeAllPopular').onclick=()=>tab('library'); $('#seeAllPl').onclick=()=>{ tab('library'); segTo('playlists'); };
   $('#searchInput').addEventListener('input',e=>{ $('#clearSearch').classList.toggle('hidden',!e.target.value); render(); });
   $('#clearSearch').onclick=()=>{ $('#searchInput').value=''; $('#clearSearch').classList.add('hidden'); render(); };
@@ -590,8 +603,6 @@ function bind(){
   $('#addMusicBtn2').onclick=add; $('#libAdd').onclick=add;
   $('#fileInput').onchange=e=>{ handleFiles(e.target.files); e.target.value=''; };
   $('#folderInput').onchange=e=>{ handleFiles(e.target.files); e.target.value=''; };
-  window.addEventListener('offline',()=>toast('Offline — your songs still play 📴'));
-  window.addEventListener('online',()=>toast('Back online 🌐'));
   $('#importFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
     const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(d.store){ store=Object.assign(defStore(),d.store); save(); applyEQ(); render(); toast('Backup restored ✓'); } }catch(err){ toast('Invalid file'); } }; r.readAsText(f); e.target.value=''; };
   $$('.seg button').forEach(b=>b.onclick=()=>segTo(b.dataset.seg));
@@ -642,7 +653,6 @@ function segTo(s){ libSeg=s; $$('.seg button').forEach(b=>b.classList.toggle('ac
   rebuild(); bind(); render();
   audio.volume=1; ensureNotifPerm();
   await loadLocal(); render();
-  if(!navigator.onLine) setTimeout(()=>toast('Offline mode — your music plays without internet'),900);
   if(currentId&&getT(currentId)){ audio.src=getT(currentId).src; audio.playbackRate=store.prefs.speed||1; render(); }
   console.log('%cAsh\'s Player ready — '+all().length+' tracks','color:#00f0ff;font-weight:bold');
 })();
