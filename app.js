@@ -287,21 +287,28 @@ function syncNotif(){
     const t=getT(currentId);
     if(!t){ try{MC.destroy(()=>{},()=>{});}catch(e){} _notifState=''; return; }
     const playing=!audio.paused, key=t.id+(playing?'1':'0');
-    if(key===_notifState) return; _notifState=key;
+    if(key===_notifState) return;
+    const trackChanged=!_notifState || _notifState.slice(0,-1)!==t.id;
+    _notifState=key;
     if(!_mcListening){ _mcListening=true;
       try{
-        MC.listen();
-        document.addEventListener('music-controls-play',()=>audio.play().catch(()=>{}));
-        document.addEventListener('music-controls-pause',()=>audio.pause());
-        document.addEventListener('music-controls-next',()=>next());
-        document.addEventListener('music-controls-previous',()=>prev());
-        document.addEventListener('music-controls-destroy',()=>{ audio.pause(); _notifState=''; });
+        MC.subscribe(function(action){
+          let message='';
+          try{ message=JSON.parse(action).message; }catch(e){}
+          if(message==='music-controls-play') audio.play().catch(()=>{});
+          else if(message==='music-controls-pause') audio.pause();
+          else if(message==='music-controls-next') next();
+          else if(message==='music-controls-previous') prev();
+          else if(message==='music-controls-destroy'){ try{audio.pause();}catch(e){} _notifState=''; }
+        });
+        MC.listen(()=>{},()=>{});
       }catch(e){}
     }
-    MC.create({ track:t.title, artist:t.artist, cover:t.coverUrl||'',
+    const cover=(t.coverUrl&&/^https?:/.test(t.coverUrl))?t.coverUrl:'';
+    if(!trackChanged){ try{ MC.updateIsPlaying(playing, ()=>{}, ()=>{}); }catch(e){} return; }
+    MC.create({ track:t.title, artist:t.artist, cover:cover,
       isPlaying:playing, dismissable:true, hasPrev:true, hasNext:true, hasClose:true,
-      playIcon:'media_play', pauseIcon:'media_pause', prevIcon:'media_prev', nextIcon:'media_next', closeIcon:'media_close',
-      notificationIcon:'notification_icon' }, ()=>{}, ()=>{});
+      ticker:'Now playing "'+t.title+'"' }, ()=>{}, ()=>{ _notifState=''; });
   }catch(e){}
 }
 
