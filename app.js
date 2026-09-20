@@ -1,3 +1,4 @@
+const APP_VERSION='2.3';
 /* Ash's Player — clean black and white edition. Sound fix: audio uses CORS + WebAudio graph with fallback. */
 'use strict';
 const $ = (s) => document.querySelector(s);
@@ -426,7 +427,7 @@ async function settingsSheet(){
   <h3>Notifications</h3><p class="muted" id="diagLine" style="font-size:13px">Checking…</p>
   <label class="switch"><input type="checkbox" id="sAu" ${store.prefs.autoplay?'checked':''}/> Autoplay next song</label>
   <h3>Library</h3><button class="opt" id="sEx">Export backup</button><button class="opt" id="sIm">Import backup</button><button class="opt danger" id="sRe">Reset everything</button>
-  <p class="muted">Ash's Player · clean black and white edition · offline ready</p><button class="opt" id="sX">Close</button>`);
+  <p class="muted">Ash's Player v${APP_VERSION} · black and white · offline ready</p><button class="opt" id="sX">Close</button>`);
   $('#sX').onclick=closeSheet;
   $$('#sheetBox [data-th]').forEach(b=>b.onclick=()=>{ store.prefs.theme=b.dataset.th; save(); settingsSheet(); render(); });
   $('#sSp').oninput=e=>{ store.prefs.speed=+e.target.value; audio.playbackRate=store.prefs.speed; e.target.nextElementSibling.textContent=store.prefs.speed.toFixed(2)+'×'; save(); };
@@ -507,16 +508,20 @@ async function handleFiles(files, folderHint, opts){
   const folderName = folderHint || folderOf(arr[0]) || 'My Music';
   let folder = store.folders.find(f=>f.name===folderName);
   if(!folder){ folder={id:'f_'+Date.now(), name:folderName, trackIds:[]}; store.folders.push(folder); }
+  let imported=0, skipped=0;
   for(const f of arr){
-    const id='local_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-    let title=f.name.replace(/\.[^.]+$/,''), artist=folderName;
-    try{ const tg=await readTags(f.blob); if(tg.title) title=tg.title; if(tg.artist) artist=tg.artist; }catch(e){}
-    const dur=await probeDur(f.blob).catch(()=>0);
-    await idbPut({id,name:f.name,title,artist,blob:f.blob,folder:folderName,duration:dur,size:f.size||0});
-    store.addedAt[id]=Date.now(); folder.trackIds.push(id);
+    try{
+      const id='local_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+      let title=f.name.replace(/\.[^.]+$/,''), artist=folderName;
+      try{ const tg=await readTags(f.blob); if(tg.title) title=tg.title; if(tg.artist) artist=tg.artist; }catch(e){}
+      const dur=await probeDur(f.blob).catch(()=>0);
+      await idbPut({id,name:f.name,title,artist,blob:f.blob,folder:folderName,duration:dur,size:f.size||0});
+      store.addedAt[id]=Date.now(); folder.trackIds.push(id); imported++;
+    }catch(e){ console.warn('skipped file', f && f.name, e); skipped++; }
+    await new Promise(r=>setTimeout(r,20));
   }
   save(); await loadLocal(); save(); render(); segTo('folders'); tab('library');
-  if(!(opts&&opts.quiet)) toast(arr.length+' song'+(arr.length>1?'s':'')+' added to '+folderName); }
+  if(!(opts&&opts.quiet)) toast(imported+' song'+(imported===1?'':'s')+' added to '+folderName+(skipped?' · '+skipped+' skipped':'')); }
 function addMenu(){ sheet(`<h2>Add music</h2><p class="muted">Stays on your device · plays offline forever</p>
   ${window.showDirectoryPicker?'<button class="opt" id="aAuto">Scan a whole folder at once</button>':''}
   <button class="opt" id="aFolder">Choose a whole folder (kept separate)</button>
