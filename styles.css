@@ -199,7 +199,7 @@ input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%; 
 /* marquee long titles */
 #plTitle{overflow:hidden; white-space:nowrap; max-width:100%}
 #plTitle .mq{display:inline-flex; gap:56px; white-space:nowrap; will-change:transform}
-#plTitle.scroll .mq{animation:mq 10s linear infinite}
+#plTitle.scroll .mq{animation:mq 16s linear infinite}
 #plTitle.scroll.paused .mq{animation-play-state:paused}
 @keyframes mq{0%,12%{transform:translateX(0)}88%,100%{transform:translateX(calc(-50% - 28px))}}
 /* sheet */
