@@ -1,4 +1,4 @@
-# 🎧 Nova Music Player (v2.1 — standalone offline app)
+# 🎧 Ash's Player (v2.1 — standalone offline app)
 
 Simple, mobile-first music player. Now a **real standalone APK**: app files live
 *inside* the app — it opens instantly with **zero internet**.
@@ -22,9 +22,9 @@ Double-click `start-pc.bat` → `http://localhost:8000` (phone-size column is no
 ## 📲 Get the standalone APK (free, no Android Studio)
 1. Upload **all** files to GitHub (including the `.github` folder — see note below).
    **Never** upload `node_modules`, `www`, APKs or `signing.keystore`.
-2. Repo → **Actions** tab → enable workflows → run **"Build Nova APK"**
+  2. Repo → **Actions** tab → enable workflows → run **"Build Ash's Player APK"**
    (also auto-runs on every push). ~3–5 min.
-3. Download the **Nova-debug-apk** artifact → copy to phone → install.
+  3. Download the **Ashs-Player-apk** artifact → copy to phone → install.
    - Uninstall the old PWABuilder version first (different signature).
    - To keep the Play-Store key later: add your `signing.keystore` as repo
      secrets and switch the workflow to `assembleRelease` (see BUILD-APK.md).

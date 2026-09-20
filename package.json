@@ -1,6 +1,6 @@
 {
-  "name": "nova-player",
-  "version": "2.1.0",
+  "name": "ashs-player",
+  "version": "2.2.0",
   "private": true,
   "scripts": {
     "sync": "cap sync android"
@@ -9,7 +9,8 @@
     "@capawesome/capacitor-file-picker": "^6.0.0",
     "@capacitor/app": "^6.0.0",
     "@capacitor/core": "^6.0.0",
-    "@capacitor/filesystem": "^6.0.0"
+    "@capacitor/filesystem": "^6.0.0",
+    "cordova-plugin-music-controls": "^3.0.1"
   },
   "devDependencies": {
     "@capacitor/android": "^6.0.0",

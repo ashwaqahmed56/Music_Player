@@ -1,8 +1,8 @@
 {
   "appId": "io.github.ashwaqahmed56.twa",
-  "appName": "Nova",
+  "appName": "Ash's Player",
   "webDir": "www",
-  "backgroundColor": "#070b1a",
+  "backgroundColor": "#0b0b0e",
   "android": {
     "allowMixedContent": false,
     "captureInput": true

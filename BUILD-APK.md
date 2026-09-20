@@ -1,4 +1,4 @@
-# 📲 Nova APK — standalone (Capacitor) + old PWA method
+# 📲 Ash's Player APK — standalone (Capacitor) + old PWA method
 
 ## Recommended: standalone offline APK (free cloud build, no installs)
 
@@ -8,9 +8,9 @@ native Android app. Opens instantly, works fully offline, no browser, no URL.
 1. **Upload to GitHub** — all files including `.github/workflows/android.yml`,
    `package.json`, `capacitor.config.json`. Do NOT upload `node_modules`,
    `www`, APKs, or `signing.keystore` (gitignore already blocks them).
-2. **Actions tab** → enable workflows if asked → select **Build Nova APK** →
+  2. **Actions tab** → enable workflows if asked → select **Build Ash's Player APK** →
    **Run workflow** (it also runs automatically on every push). Takes ~3–5 min.
-3. Open the finished run → **Artifacts** → download **Nova-debug-apk**.
+  3. Open the finished run → **Artifacts** → download **Ashs-Player-apk**.
 4. Copy the APK to your phone → tap → Install (allow unknown apps once).
 5. **Uninstall the old PWABuilder (TWA) version first** — debug builds use a
    different signature, Android won't install over it.
