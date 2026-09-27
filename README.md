@@ -11,10 +11,12 @@ app — opens instantly with **zero internet**.
 - **Search that stays out of the way** — Home search opens its own results
   (songs, albums, artists); Songs and Library have their own independent search.
   Typing in one place never rearranges another.
-- **Songs** — latest additions + Add Music (newest/oldest)
+- **Songs** — full list loads at once, A–Z rail jumps to any letter, latest
+  additions + Add Music (newest/oldest)
 - **Mix** — endless shuffle mix with live queue
-- **Library** — Songs / Albums / Artists / Folders / Playlists / Liked,
-  A–Z sorting, long lists load in pages (no freezes with 700+ songs)
+- **Library** — Playlists / Folders with counts and total time
+- Battery-friendly: lists repaint only when the library changes, animations
+  rest while paused, background work trickles in quietly
 - **Scan device music (Android)** — one tap finds every song on the phone,
   grouped by folder, with album art filled in afterwards. Nothing is copied or
   deleted; likes/playlists just work. Needs music permission.
@@ -27,9 +29,13 @@ app — opens instantly with **zero internet**.
 - **Synced lyrics** — Lyrics → Fetch synced lyrics, lines highlight live as the
   song plays, cached offline forever after one fetch
 - Reorder queue + playlist songs with ↑ ↓; edit title/artist/album tags per song
+- Motion everywhere: rows slide out on delete, fresh imports slide in, jump
+  targets flash, tabs slide by direction, play button pops on like
+- **Multi-select in Songs** — Select button, tick songs, then Delete them all
+  at once or drop them straight into a playlist
 - Equalizer (applies from next song), sleep timer with volume fade restore,
   favorites, backup export/import
-- Theme follows the system by default (Dark / Light / System) + accent colors
+- Theme follows the system by default (Dark / Light / System), accent tuned per theme
 - Lock-screen + background controls (Android notification with custom icons
   and album art, progress bar included)
 - **Fully offline** — everything stays on your device

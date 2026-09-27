@@ -56,7 +56,8 @@
 
     
     <section id="screen-new" class="screen">
-      <div class="page-head"><div><p class="kicker">Browse</p><h1>Songs</h1></div><button id="addMusicBtn2" class="btn solid">＋ Add</button></div>
+      <div class="page-head"><div><p class="kicker">Browse</p><h1>Songs</h1></div><div class="row-btns"><button id="selectToggle" class="btn tonal sm">Select</button><button id="addMusicBtn2" class="btn solid">＋ Add</button></div></div>
+      <div id="selBar" class="selbar hidden"><b id="selCount">0 selected</b><span class="sel-sp"></span><button id="selAll" class="btn tonal sm">All</button><button id="selPl" class="btn tonal sm">Playlist</button><button id="selDel" class="btn tonal sm danger">Delete</button><button id="selX" class="btn tonal sm">Done</button></div>
       <div class="hero" id="nsCard">
         <div class="hero-art" id="nsArt">♪</div>
         <div class="hero-mid"><span class="kicker" id="nsKick">Now playing</span><b id="nsTitle">—</b><span id="nsSub">—</span>
@@ -66,6 +67,7 @@
       </div>
       <label class="search-field sm"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="songsSearch" placeholder="Search songs..." autocomplete="off" /><button id="clearSongsSearch" class="hidden" aria-label="Clear">✕</button></label>
       <div class="chips" id="newSortRow"></div>
+      <div id="alphaRail" class="alpha-rail hidden"></div>
       <div id="newList" class="v-list"></div>
       <div style="height:14px"></div>
     </section>
@@ -93,21 +95,12 @@
         <button class="hero-next" id="lbNext" aria-label="Next"></button>
       </div>
       <div class="seg" role="tablist">
-        <button data-seg="songs" class="active">Songs</button>
-        <button data-seg="albums">Albums</button>
-        <button data-seg="artists">Artists</button>
+        <button data-seg="playlists" class="active">Playlists</button>
         <button data-seg="folders">Folders</button>
-        <button data-seg="playlists">Playlists</button>
-        <button data-seg="liked">Liked</button>
       </div>
       <label class="search-field sm"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="libSearch" placeholder="Search library..." autocomplete="off" /><button id="clearLibSearch" class="hidden" aria-label="Clear">✕</button></label>
-      <div class="chips" id="songSortRow"></div>
-      <div id="libSongs" class="v-list"></div>
-      <div id="libAlbums" class="v-list hidden"></div>
-      <div id="libArtists" class="v-list hidden"></div>
       <div id="libFolders" class="v-list hidden"></div>
-      <div id="libPlaylists" class="v-list hidden"></div>
-      <div id="libLiked" class="v-list hidden"></div>
+      <div id="libPlaylists" class="v-list"></div>
       <button id="newPlaylistBtn" class="btn tonal hidden">＋ New playlist</button>
       <div style="height:14px"></div>
     </section>
