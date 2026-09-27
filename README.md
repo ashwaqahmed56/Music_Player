@@ -1,9 +1,9 @@
 # Ash's Player (offline-first music app)
 
-Simple offline music player with soft frosted-glass cards, true OLED black dark
-mode, a warm soothing light mode, one peach glow accent and serif headlines.
-A **real standalone APK**: app files live *inside* the app — opens instantly
-with **zero internet**.
+Simple offline music player with a botanical editorial look — deep leaf-green
+ink, marigold amber, parchment light mode, forest-black dark mode, ranked
+charts and a spinning-vinyl player. A **real standalone APK**: app files live
+*inside* the app — opens instantly with **zero internet**.
 
 ## What's inside
 - **Home** — greeting, search with results overlay, popular tracks, playlists,
@@ -54,12 +54,14 @@ Double-click `start-pc.bat` → `http://localhost:8000` (phone-size column is no
    - To keep the Play-Store key later: add your `signing.keystore` as repo
      secrets and switch the workflow to `assembleRelease` (see BUILD-APK.md).
 
-> **Uploading dot-folders:** GitHub's web upload sometimes hides `.github` /
-> `.well-known`. If they don't appear after drag-drop: repo → Add file →
+> **Uploading dot-folders:** GitHub's web upload sometimes hides `.github` and
+> `.nojekyll`. If they don't appear after drag-drop: repo → Add file →
 > Create new file → type `.github/workflows/android.yml` → paste the file
-> content → Commit. Same trick for `.well-known/assetlinks.json` and `.nojekyll`.
+> content → Commit. Same trick for `.nojekyll` if needed.
 
-## 📁 Files
+## Files (upload them all)
 `index.html` · `styles.css` · `app.js` · `package.json` · `capacitor.config.json` ·
 `.github/workflows/android.yml` · `manifest.json` · `sw.js` · icons ·
-`.well-known/assetlinks.json` · `.nojekyll` · `BUILD-APK.md` · `start-pc.bat`
+`.nojekyll` · `.gitignore` · `plugins/` · `README.md` · `BUILD-APK.md` · `start-pc.bat`
+
+Never upload: `node_modules/` · `www/` · `android/` · `*.apk` · `*.keystore`

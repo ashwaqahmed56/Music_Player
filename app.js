@@ -1,4 +1,4 @@
-const APP_VERSION='3.6';
+const APP_VERSION='3.7';
 'use strict';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -339,7 +339,7 @@ function applyTheme(){
   r.dataset.theme=th;
   r.style.setProperty('--acc',acc.a);
   try{ r.style.setProperty('--acc-soft',acc.a+'2e'); }catch(e){}
-  const mc=document.querySelector('meta[name=theme-color]'); if(mc) mc.content=th==='light'?'#efe7d9':'#000000';
+  const mc=document.querySelector('meta[name=theme-color]'); if(mc) mc.content=th==='light'?'#f1ebdc':'#0b100c';
   $$('.themeToggle').forEach(b=>b.innerHTML=th==='light'?ICONS.moon:ICONS.sun);
 }
 
@@ -355,8 +355,9 @@ function render(){
   const mPill=$('#mixPill'); if(mPill) mPill.textContent=store.radio?'Mix on':'Shuffle';
   const pr=$('#popularRow'); if(pr){ pr.innerHTML='';
     if(!all().length) pr.innerHTML='<p class="muted">No music yet — go to Songs → Add</p>';
-    popular.forEach(t=>{
+    popular.forEach((t,ri)=>{
       const c=document.createElement('div'); c.className='pop-card'+(t.id===currentId?' playing':'');
+      const rn=document.createElement('i'); rn.className='rank'; rn.textContent=String(ri+1).padStart(2,'0'); c.appendChild(rn);
       const a=document.createElement('div'); a.className='pop-art'; a.style.cssText=artStyle(t);
       if(t.coverUrl){ const im=document.createElement('img'); im.src=t.coverUrl; im.alt=''; im.loading='lazy'; a.appendChild(im); }
       else { const s=document.createElement('span'); s.textContent=(t.title||'♪').trim().charAt(0).toUpperCase(); a.appendChild(s); }

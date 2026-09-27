@@ -28,8 +28,3 @@ So updates install seamlessly + Play Store accepts it:
    and add a signing step using those secrets (standard `gradle` signing config),
    artifact path becomes `android/app/build/outputs/apk/release/app-release.apk`.
 
-## Old method: PWABuilder TWA (website wrapper — needs internet)
-Only if you want the URL-based version: host on Pages → pwabuilder.com →
-paste URL → Package for Android reusing `signing.keystore`. Note: first launch
-needs internet and it behaves like a browser tab without `assetlinks.json`
-hosted (`.well-known/assetlinks.json` + `.nojekyll` in this repo fix that).
