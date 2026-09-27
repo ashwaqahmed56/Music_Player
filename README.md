@@ -10,14 +10,18 @@ app files live *inside* the app — opens instantly with **zero internet**.
 - **Home** — greeting, search, Popular Songs, playlists, recently played
 - **New** — latest additions + Add Music (newest/oldest)
 - **Radio** — endless shuffle mix (proper on/off state, no longer stuck on)
-- **Library** — Songs / Folders / Playlists / Liked, A–Z sorting, long lists
-  load in pages (no more freezes with 700+ songs)
+- **Library** — Songs / Albums / Artists / Folders / Playlists / Liked (Lotus-style
+  browse), A–Z sorting, long lists load in pages (no more freezes with 700+ songs)
 - **Scan device music (Android)** — one tap finds every song on the phone via
   the system media library, grouped by folder. Nothing is copied or deleted;
   likes/playlists just work. Needs the fresh APK build + music permission.
 - **Manual import** — pick files or a folder (PC/PWA); big picks import with
   live progress, durations fill in quietly afterwards, duplicates skipped
-- Full player — big art, seek + volume, shuffle/repeat, lyrics, EQ, sleep, queue
+- Full player — big art, seek + volume, shuffle/repeat, plain + synced lyrics,
+  EQ, sleep, reorderable queue
+- **Synced lyrics** (Lotus-style via free LRCLIB) — Lyrics → Fetch synced lyrics,
+  lines highlight live as the song plays, cached offline forever after one fetch
+- Reorder queue + playlist songs with ↑ ↓; edit title/artist/album tags per song
 - Equalizer (applies from next song, so it can never mute playback), lyrics,
   sleep timer with volume fade restore, favorites, backup export/import
 - Theme: Dark / Light / System + earthy accent colors

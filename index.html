@@ -77,12 +77,16 @@
       <div class="page-head"><div><p class="kicker">Collection</p><h1>Library</h1><p class="sub" id="libSub">Your collection</p></div><div class="row-btns"><button class="icon-btn themeToggle" title="Theme" aria-label="Theme"></button><button id="libAdd" class="icon-btn" title="Add music" aria-label="Add">＋</button><button id="libSettings" class="icon-btn" title="Settings" aria-label="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div></div>
       <div class="seg" role="tablist">
         <button data-seg="songs" class="active">Songs</button>
+        <button data-seg="albums">Albums</button>
+        <button data-seg="artists">Artists</button>
         <button data-seg="folders">Folders</button>
         <button data-seg="playlists">Playlists</button>
         <button data-seg="liked">Liked</button>
       </div>
       <div class="chips" id="songSortRow"></div>
       <div id="libSongs" class="v-list"></div>
+      <div id="libAlbums" class="v-list hidden"></div>
+      <div id="libArtists" class="v-list hidden"></div>
       <div id="libFolders" class="v-list hidden"></div>
       <div id="libPlaylists" class="v-list hidden"></div>
       <div id="libLiked" class="v-list hidden"></div>
@@ -115,6 +119,7 @@
       <button id="plLike" class="icon-btn" aria-label="Like"></button>
     </div>
     <p class="pl-lyr" id="plLyrPreview">Lyrics will appear here</p>
+    <div class="pl-lyr-sync hidden" id="plLyrSync" title="Tap for plain lyrics"></div>
     <div class="pl-seek"><input type="range" id="plSeek" min="0" max="1000" value="0" aria-label="Seek" /><div class="pl-times"><span id="plCur">0:00</span><span id="plDur">0:00</span></div></div>
     <div class="pl-controls">
       <button id="plShuffle" class="pl-btn" aria-label="Shuffle"></button>

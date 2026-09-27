@@ -204,6 +204,12 @@ input[type=range]::-moz-range-thumb{width:14px; height:14px; border-radius:50%; 
 .switch{display:flex; align-items:center; gap:10px; margin:10px 0; cursor:pointer; font-size:14px}
 .switch input{width:19px; height:19px; accent-color:var(--acc)}
 
+.pl-lyr-sync{margin:2px 0 6px; min-height:64px; cursor:pointer}
+.pl-lyr-sync p{margin:3px 0; font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center}
+.pl-lyr-sync p.cur{font-size:15px; font-weight:700; color:var(--ink)}
+.ord{display:inline-flex; gap:2px}
+.ord button{background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; font-size:12px; padding:3px 7px; cursor:pointer}
+.ord button:active{background:var(--surface2)}
 /* marquee */
 #plTitle{overflow:hidden; white-space:nowrap; max-width:100%}
 #plTitle .mq{display:inline-flex; gap:56px; white-space:nowrap; will-change:transform}
