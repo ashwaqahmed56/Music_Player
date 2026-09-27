@@ -9,7 +9,6 @@ import android.os.Build;
 import android.provider.MediaStore;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
-import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -41,12 +40,8 @@ public class MediaLibraryPlugin extends Plugin {
     @PluginMethod
     public void listAudio(PluginCall call) {
         try {
-            String alias = audioAlias();
-            if (getPermissionStatus(alias) != PermissionState.GRANTED) {
-                requestPermissionForAlias(alias, call, "audioPermsCallback");
-                return;
-            }
-            sendAudio(call);
+            // If already granted this resolves straight to the callback with no dialog.
+            requestPermissionForAlias(audioAlias(), call, "audioPermsCallback");
         } catch (Exception e) {
             call.reject("Scan failed: " + e.getMessage());
         }
@@ -55,11 +50,9 @@ public class MediaLibraryPlugin extends Plugin {
     @PermissionCallback
     private void audioPermsCallback(PluginCall call) {
         try {
-            if (getPermissionStatus(audioAlias()) == PermissionState.GRANTED) {
-                sendAudio(call);
-            } else {
-                call.reject("Permission denied");
-            }
+            sendAudio(call);
+        } catch (SecurityException se) {
+            call.reject("Permission denied");
         } catch (Exception e) {
             call.reject("Scan failed: " + e.getMessage());
         }
