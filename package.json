@@ -1,6 +1,6 @@
 {
   "name": "ashs-player",
-  "version": "3.8.1",
+  "version": "3.9.0",
   "private": true,
   "scripts": {
     "sync": "npx cap sync android"
@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@capacitor/android": "^6.0.0",
+    "@capacitor/assets": "^3.0.0",
     "@capacitor/cli": "^6.0.0"
   }
 }

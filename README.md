@@ -62,6 +62,6 @@ Double-click `start-pc.bat` → `http://localhost:8000` (phone-size column is no
 ## Files (upload them all)
 `index.html` · `styles.css` · `app.js` · `package.json` · `capacitor.config.json` ·
 `.github/workflows/android.yml` · `manifest.json` · `sw.js` · icons ·
-`.nojekyll` · `.gitignore` · `plugins/` · `README.md` · `BUILD-APK.md` · `start-pc.bat`
+`.nojekyll` · `.gitignore` · `plugins/` · `assets/icon.png` · `README.md` · `BUILD-APK.md` · `start-pc.bat`
 
 Never upload: `node_modules/` · `www/` · `android/` · `*.apk` · `*.keystore`

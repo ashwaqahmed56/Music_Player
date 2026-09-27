@@ -1,4 +1,4 @@
-const APP_VERSION='3.8.1';
+const APP_VERSION='3.9';
 'use strict';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -312,7 +312,7 @@ function trackRow(t, opts){
   opts=opts||{};
   const d=document.createElement('div'); d.className='track'+(t.id===currentId?' playing':'');
   const liked=store.likes.includes(t.id);
-  d.innerHTML=`${artHTML(t,'t-art')}<div class="t-meta"><b>${esc(t.title)}${liked?' <span class="liked-dot" title="Liked">•</span>':''}</b><span>${esc(t.artist)}${t.duration?' · '+fmt(t.duration):''}</span></div>${t.id===currentId&&!audio.paused?'<span class="eqbars"><i></i><i></i><i></i></span>':''}${opts.reorder?'<span class="ord"><button data-m="-1" aria-label="Move up">↑</button><button data-m="1" aria-label="Move down">↓</button></span>':''}<button class="t-menu" aria-label="More">${ICONS.dots}</button>`;
+  d.innerHTML=`${opts.rank?`<span class="top-rank">${esc(opts.rank)}</span>`:''}${artHTML(t,'t-art')}<div class="t-meta"><b>${esc(t.title)}${liked?' <span class="liked-dot" title="Liked">•</span>':''}</b><span>${esc(t.artist)}${t.duration?' · '+fmt(t.duration):''}</span></div>${t.id===currentId&&!audio.paused?'<span class="eqbars"><i></i><i></i><i></i></span>':''}${opts.reorder?'<span class="ord"><button data-m="-1" aria-label="Move up">↑</button><button data-m="1" aria-label="Move down">↓</button></span>':''}<button class="t-menu" aria-label="More">${ICONS.dots}</button>`;
   d.onclick=()=>playTrack(t.id,{open:true});
   d.querySelector('.t-menu').onclick=(e)=>{ e.stopPropagation(); songMenu(t.id); };
   if(opts.reorder) d.querySelectorAll('.ord button').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); opts.reorder(t.id,+b.dataset.m); });
@@ -349,26 +349,13 @@ function render(){
   const _lk=songsQ+'|'+libQ+'|'+store.prefs.songSort+'|'+store.prefs.newSort+'|'+all().length;
   if(_lk!==lastListKey){ lastListKey=_lk; listLimit=120; }
   const plays=id=>store.playCounts[id]||0;
-  const popular=all().slice().sort((a,b)=>plays(b.id)-plays(a.id)).slice(0,8);
+  const popular=all().slice().sort((a,b)=>plays(b.id)-plays(a.id)).slice(0,10);
   const sl2=$('#statLine'); if(sl2) sl2.textContent=all().length?`${all().length} songs · ${store.playlists.length} playlists`:'Your music';
   paintSpot('hero'); paintHero('ns'); paintHero('lb');
   const mPill=$('#mixPill'); if(mPill) mPill.textContent=store.radio?'Mix on':'Shuffle';
   const pr=$('#popularRow'); if(pr){ pr.innerHTML='';
     if(!all().length) pr.innerHTML='<p class="muted">No music yet — go to Songs → Add</p>';
-    popular.forEach((t,ri)=>{
-      const c=document.createElement('div'); c.className='pop-card'+(t.id===currentId?' playing':'');
-      const rn=document.createElement('i'); rn.className='rank'; rn.textContent=String(ri+1).padStart(2,'0'); c.appendChild(rn);
-      const a=document.createElement('div'); a.className='pop-art'; a.style.cssText=artStyle(t);
-      if(t.coverUrl){ const im=document.createElement('img'); im.src=t.coverUrl; im.alt=''; im.loading='lazy'; a.appendChild(im); }
-      else { const s=document.createElement('span'); s.textContent=(t.title||'♪').trim().charAt(0).toUpperCase(); a.appendChild(s); }
-      const pb=document.createElement('button'); pb.className='pop-play'; pb.setAttribute('aria-label','Play');
-      pb.innerHTML=currentId===t.id&&!audio.paused?ICONS.pause:ICONS.play;
-      pb.onclick=(e)=>{ e.stopPropagation(); currentId===t.id?toggle():playTrack(t.id,{open:true}); };
-      a.appendChild(pb); c.appendChild(a);
-      const b=document.createElement('b'); b.textContent=t.title; c.appendChild(b);
-      const s=document.createElement('span'); s.textContent=t.artist; c.appendChild(s);
-      c.onclick=()=>playTrack(t.id,{open:true}); pr.appendChild(c);
-    });
+    popular.forEach((t,ri)=>pr.appendChild(trackRow(t,{rank:String(ri+1).padStart(2,'0')})));
   }
   const hp=$('#homePlaylists'); if(hp){ hp.innerHTML='';
     if(!store.playlists.length) hp.innerHTML='<p class="muted">No playlists yet — make one in Library → Playlists</p>';
