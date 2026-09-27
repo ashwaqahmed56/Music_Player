@@ -17,7 +17,6 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import android.content.ContentResolver;
 import android.content.Intent;
-import android.net.Uri;
 import java.io.File;
 
 /**
@@ -60,7 +59,12 @@ public class MediaLibraryPlugin extends Plugin {
         } catch (SecurityException se) {
             try {
                 Intent intent = new Intent(Intent.ACTION_DELETE, Uri.parse(uri));
-                getActivity().startActivity(intent);
+                if (getActivity() != null) {
+                    getActivity().startActivity(intent);
+                } else {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    getContext().startActivity(intent);
+                }
                 call.resolve(new JSObject().put("deleted", true));
             } catch (Exception e2) { call.reject("Delete failed: " + e2.getMessage()); }
         } catch (Exception e) { call.reject("Delete failed: " + e.getMessage()); }
