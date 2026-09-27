@@ -1,4 +1,4 @@
-const APP_VERSION='3.3';
+const APP_VERSION='3.3.1';
 /* Ash's Player v3 Terra — offline-first. v3.3: Lotus-style MediaStore device scan, crash hardening, bulk-import safe. */
 'use strict';
 const $ = (s) => document.querySelector(s);
