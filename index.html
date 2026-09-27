@@ -26,7 +26,7 @@
   </header>
 
   <main class="screens">
-    <!-- HOME -->
+    
     <section id="screen-home" class="screen active">
       <div class="page-head"><div><p class="kicker" id="greetTitle">Good evening</p><h1>Find your vibe</h1></div></div>
       <label class="search-field"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="searchInput" placeholder="Search songs, artists..." autocomplete="off" /><button id="clearSearch" class="hidden" aria-label="Clear">✕</button></label>
@@ -52,15 +52,16 @@
       <div style="height:14px"></div>
     </section>
 
-    <!-- SONGS -->
+    
     <section id="screen-new" class="screen">
       <div class="page-head"><div><p class="kicker">Browse</p><h1>Songs</h1></div><button id="addMusicBtn2" class="btn solid">＋ Add</button></div>
+      <label class="search-field sm"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="songsSearch" placeholder="Search songs..." autocomplete="off" /><button id="clearSongsSearch" class="hidden" aria-label="Clear">✕</button></label>
       <div class="chips" id="newSortRow"></div>
       <div id="newList" class="v-list"></div>
       <div style="height:14px"></div>
     </section>
 
-    <!-- MIX -->
+    
     <section id="screen-radio" class="screen">
       <div class="page-head"><div><p class="kicker">Endless</p><h1>Mix</h1></div><span class="pill" id="mixPill">Shuffle</span></div>
       <div class="mix-card">
@@ -72,7 +73,7 @@
       <div id="radioNext" class="v-list"></div>
     </section>
 
-    <!-- LIBRARY -->
+    
     <section id="screen-library" class="screen">
       <div class="page-head"><div><p class="kicker">Collection</p><h1>Library</h1><p class="sub" id="libSub">Your collection</p></div><div class="row-btns"><button class="icon-btn themeToggle" title="Theme" aria-label="Theme"></button><button id="libAdd" class="icon-btn" title="Add music" aria-label="Add">＋</button><button id="libSettings" class="icon-btn" title="Settings" aria-label="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div></div>
       <div class="seg" role="tablist">
@@ -83,6 +84,7 @@
         <button data-seg="playlists">Playlists</button>
         <button data-seg="liked">Liked</button>
       </div>
+      <label class="search-field sm"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="libSearch" placeholder="Search library..." autocomplete="off" /><button id="clearLibSearch" class="hidden" aria-label="Clear">✕</button></label>
       <div class="chips" id="songSortRow"></div>
       <div id="libSongs" class="v-list"></div>
       <div id="libAlbums" class="v-list hidden"></div>
@@ -111,6 +113,7 @@
   </nav>
 
   <div id="playerOverlay" class="player hidden">
+    <div class="amb" id="plAmb"></div>
     <div class="grab"></div>
     <div class="pl-top"><button id="plBack" class="icon-btn" aria-label="Close"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><span class="pill">Now playing</span><button id="plMenu" class="icon-btn" aria-label="More"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button></div>
     <div class="pl-art" id="plArt"></div>
@@ -135,6 +138,7 @@
       <button id="plEqBtn" class="tool"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>EQ</button>
       <button id="plSleepBtn" class="tool"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>Sleep</button>
     </div>
+    <p class="gest-hint">Swipe sideways for next song · swipe down to close</p>
   </div>
 
   <div id="listOverlay" class="player hidden">
@@ -144,6 +148,14 @@
     <div class="btn-row"><button id="listPlayAll" class="btn solid sm">Play all</button><button id="listShuffle" class="btn tonal sm">Shuffle</button><button id="listAddSongs" class="btn tonal sm">＋ Add songs</button></div>
     <div id="listSongs" class="v-list"></div>
   </div>
+
+  <div id="searchOverlay" class="player hidden">
+    <div class="grab"></div>
+    <div class="pl-top"><button id="searchBack" class="icon-btn" aria-label="Back"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><b id="searchTitle">Search</b><span style="width:40px"></span></div>
+    <p id="searchMeta" class="muted center"></p>
+    <div id="searchGroups"></div>
+    <div id="searchSongs" class="v-list"></div>
+  </div>
 </div>
 
 <div id="sheetBack" class="sheet-back hidden"><div class="sheet" id="sheetBox"></div></div>
@@ -151,7 +163,7 @@
 <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.webm,.opus" multiple hidden />
 <input type="file" id="folderInput" webkitdirectory multiple hidden />
 <input type="file" id="importFile" accept="application/json" hidden />
-<audio id="audio" preload="metadata"></audio>
+<audio id="audio" preload="auto"></audio>
 
 <script src="app.js"></script>
 <script>

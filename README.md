@@ -1,32 +1,36 @@
-# Ash's Player (v3 Terra — offline-first music app)
+# Ash's Player (offline-first music app)
 
-Warm, simple offline music player. Flat paper/espresso surfaces, one clay accent
-(plus moss/ochre/slate/plum), serif headlines — zero glow, zero gradients,
-zero AI-slop. Device library inspired by [Lotus](https://github.com/dn0ne/lotus):
-your whole phone library, no ticking files one by one. A **real standalone APK**:
-app files live *inside* the app — opens instantly with **zero internet**.
+Simple offline music player with a warm paper/espresso look, earthy accents and
+serif headlines. A **real standalone APK**: app files live *inside* the app —
+opens instantly with **zero internet**.
 
 ## What's inside
-- **Home** — greeting, search, Popular Songs, playlists, recently played
-- **New** — latest additions + Add Music (newest/oldest)
-- **Radio** — endless shuffle mix (proper on/off state, no longer stuck on)
-- **Library** — Songs / Albums / Artists / Folders / Playlists / Liked (Lotus-style
-  browse), A–Z sorting, long lists load in pages (no more freezes with 700+ songs)
-- **Scan device music (Android)** — one tap finds every song on the phone via
-  the system media library, grouped by folder. Nothing is copied or deleted;
-  likes/playlists just work. Needs the fresh APK build + music permission.
+- **Home** — greeting, search with results overlay, popular tracks, playlists,
+  recently played
+- **Search that stays out of the way** — Home search opens its own results
+  (songs, albums, artists); Songs and Library have their own independent search.
+  Typing in one place never rearranges another.
+- **Songs** — latest additions + Add Music (newest/oldest)
+- **Mix** — endless shuffle mix with live queue
+- **Library** — Songs / Albums / Artists / Folders / Playlists / Liked,
+  A–Z sorting, long lists load in pages (no freezes with 700+ songs)
+- **Scan device music (Android)** — one tap finds every song on the phone,
+  grouped by folder, with album art filled in afterwards. Nothing is copied or
+  deleted; likes/playlists just work. Needs music permission.
 - **Manual import** — pick files or a folder (PC/PWA); big picks import with
   live progress, durations fill in quietly afterwards, duplicates skipped
-- Full player — big art, seek + volume, shuffle/repeat, plain + synced lyrics,
-  EQ, sleep, reorderable queue
-- **Synced lyrics** (Lotus-style via free LRCLIB) — Lyrics → Fetch synced lyrics,
-  lines highlight live as the song plays, cached offline forever after one fetch
+- Full player — big art with ambient glow, seek + volume, shuffle/repeat,
+  plain + synced lyrics, EQ, sleep, reorderable queue
+- **Gestures** — swipe sideways for next/previous song, swipe down to close,
+  swipe the mini player to skip. Sliders and buttons never trigger them.
+- **Synced lyrics** — Lyrics → Fetch synced lyrics, lines highlight live as the
+  song plays, cached offline forever after one fetch
 - Reorder queue + playlist songs with ↑ ↓; edit title/artist/album tags per song
-- Equalizer (applies from next song, so it can never mute playback), lyrics,
-  sleep timer with volume fade restore, favorites, backup export/import
-- Theme: Dark / Light / System + earthy accent colors
+- Equalizer (applies from next song), sleep timer with volume fade restore,
+  favorites, backup export/import
+- Theme follows the system by default (Dark / Light / System) + accent colors
 - Lock-screen + background controls (Android notification)
-- **Fully offline** — everything stays on your device (IndexedDB + localStorage)
+- **Fully offline** — everything stays on your device
 
 ## 🖥️ Test on PC
 Double-click `start-pc.bat` → `http://localhost:8000` (phone-size column is normal).

@@ -10,7 +10,6 @@ self.addEventListener('activate', (e) => {
 });
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  // stream audio / CDN / lyrics API straight through (no cache)
   if (url.hostname.includes('soundhelix') || url.hostname.includes('cdnjs') || url.hostname.includes('lrclib.net')) return;
   if (e.request.method !== 'GET') return;
   e.respondWith(
