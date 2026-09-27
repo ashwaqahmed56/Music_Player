@@ -1,19 +1,21 @@
-# 📲 Ash's Player APK — standalone (Capacitor) + old PWA method
+# Ash's Player APK — standalone (Capacitor)
 
 ## Recommended: standalone offline APK (free cloud build, no installs)
 
-Your app is now packaged with **Capacitor**: HTML/CSS/JS bundled *inside* a
-native Android app. Opens instantly, works fully offline, no browser, no URL.
+Your app is packaged with **Capacitor**: HTML/CSS/JS bundled *inside* a native
+Android app (`com.ashs.player`). Opens instantly, works fully offline.
 
-1. **Upload to GitHub** — all files including `.github/workflows/android.yml`,
+1. **Push to GitHub** — all files including `.github/workflows/android.yml`,
    `package.json`, `capacitor.config.json`. Do NOT upload `node_modules`,
-   `www`, APKs, or `signing.keystore` (gitignore already blocks them).
-  2. **Actions tab** → enable workflows if asked → select **Build Ash's Player APK** →
-   **Run workflow** (it also runs automatically on every push). Takes ~3–5 min.
-  3. Open the finished run → **Artifacts** → download **Ashs-Player-apk**.
+   `www`, `android`, APKs, or `signing.keystore` (gitignore already blocks them).
+2. **Actions tab** → enable workflows if asked → select **Build Ash's Player APK** →
+   **Run workflow** (also auto-runs on every push to master/main). Takes ~3–5 min.
+   Workflow uses pinned `actions/*@v4` (v6/v7 do not exist and will fail).
+3. Open the finished run → **Artifacts** → download **Ashs-Player-apk**.
 4. Copy the APK to your phone → tap → Install (allow unknown apps once).
-5. **Uninstall the old PWABuilder (TWA) version first** — debug builds use a
-   different signature, Android won't install over it.
+5. **Uninstall the old PWABuilder (TWA) version first** — the app id changed from
+   `io.github.ashwaqahmed56.twa` to `com.ashs.player` and debug builds use a
+   different signature, so Android won't install over it.
 
 ### Make it a signed release with YOUR key (optional, later)
 So updates install seamlessly + Play Store accepts it:

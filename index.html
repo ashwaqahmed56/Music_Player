@@ -4,64 +4,78 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Ash's Player</title>
-<meta name="description" content="Ash's Player - simple, neon, mobile-first music player" />
-<meta name="theme-color" content="#070b1a" />
+<meta name="description" content="Ash's Player - warm, simple offline music player" />
+<meta name="theme-color" content="#161412" />
+<meta name="color-scheme" content="dark light" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
 <body>
-<div class="bg-glow"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span></div>
-<div id="dropOverlay" class="drop-overlay hidden"><div class="drop-box"><svg class="ic xl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><h2>Drop music here</h2><p>MP3 · WAV · OGG · M4A · FLAC</p></div></div>
+<div id="dropOverlay" class="drop-overlay hidden"><div class="drop-box"><svg class="ic xl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><h2>Drop music here</h2><p>MP3 · WAV · OGG · M4A · FLAC</p></div></div>
 
 <div class="phone">
+  <header class="appbar">
+    <div class="brand"><span class="brand-mark">A</span><div class="brand-txt"><b>Ash's Player</b><span id="statLine">Your music</span></div></div>
+    <div class="row-btns"><button class="icon-btn themeToggle" title="Theme" aria-label="Theme"></button><button id="homeSettings" class="icon-btn" title="Settings" aria-label="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
+  </header>
+
   <main class="screens">
     <!-- HOME -->
     <section id="screen-home" class="screen active">
-      <div class="greet">
-        <div><h1 id="greetTitle">Hello</h1><p>Find your vibe today</p></div>
-        <div class="row-btns"><button class="glass-btn themeToggle" title="Dark / light mode"></button><button id="homeSettings" class="glass-btn" title="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
+      <div class="page-head"><div><p class="kicker" id="greetTitle">Good evening</p><h1>Find your vibe</h1></div></div>
+      <label class="search-field"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="searchInput" placeholder="Search songs, artists..." autocomplete="off" /><button id="clearSearch" class="hidden" aria-label="Clear">✕</button></label>
+
+      <div class="hero" id="heroCard">
+        <div class="hero-art" id="heroArt">♪</div>
+        <div class="hero-mid"><span class="kicker" id="heroKick">Ready</span><b id="heroTitle">Add your music</b><span id="heroSub">Plays offline, stays on device</span></div>
+        <button class="hero-play" id="heroPlay" aria-label="Play"></button>
       </div>
-      <div class="search-pill"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="searchInput" placeholder="Looking for..." autocomplete="off" /><button id="clearSearch" class="hidden">✕</button></div>
-      <div class="row-head"><h2>Popular Songs</h2><button id="seeAllPopular" class="link">See all</button></div>
+
+      <div class="quick-row">
+        <button class="quick" id="quickShuffle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>Shuffle</button>
+        <button class="quick" id="quickAdd"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add</button>
+        <button class="quick" id="quickMix"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2"/><path d="M4.9 19.1a10 10 0 0 1 0-14.2M7.8 16.4a6 6 0 0 1 0-8.8M16.2 7.6a6 6 0 0 1 0 8.8M19.1 4.9a10 10 0 0 1 0 14.2"/></svg>Mix</button>
+      </div>
+
+      <div class="row-head"><h2>Top tracks</h2><button id="seeAllPopular" class="link">See all</button></div>
       <div id="popularRow" class="h-scroll"></div>
-      <div class="row-head"><h2>Your Playlists</h2><button id="seeAllPl" class="link">See all</button></div>
-      <div id="homePlaylists"></div>
-      <div class="row-head"><h2>Recently Played</h2></div>
-      <div id="homeRecent"></div>
+      <div class="row-head"><h2>Playlists</h2><button id="seeAllPl" class="link">See all</button></div>
+      <div id="homePlaylists" class="v-list"></div>
+      <div class="row-head"><h2>Jump back in</h2></div>
+      <div id="homeRecent" class="v-list"></div>
       <div style="height:14px"></div>
     </section>
 
-    <!-- NEW -->
+    <!-- SONGS -->
     <section id="screen-new" class="screen">
-      <div class="greet"><div><h1>New In</h1><p>Fresh drops and your uploads</p></div></div>
-      <button id="addMusicBtn2" class="neon-btn">＋ Add Music</button>
+      <div class="page-head"><div><p class="kicker">Browse</p><h1>Songs</h1></div><button id="addMusicBtn2" class="btn solid">＋ Add</button></div>
       <div class="chips" id="newSortRow"></div>
       <div id="newList" class="v-list"></div>
       <div style="height:14px"></div>
     </section>
 
-    <!-- RADIO -->
-    <section id="screen-radio" class="screen center">
-      <div class="greet"><div><h1>Radio</h1><p>Endless shuffle mix</p></div></div>
-      <div class="radio-art" id="radioArt"></div>
-      <div class="radio-meta"><b id="radioTitle">Nothing playing</b><span id="radioArtist">Tap play to start the mix</span></div>
-      <button id="radioToggle" class="radio-play"></button>
-      <div class="row-head" style="width:100%"><h2>Up next</h2></div>
-      <div id="radioNext" class="v-list" style="width:100%"></div>
+    <!-- MIX -->
+    <section id="screen-radio" class="screen">
+      <div class="page-head"><div><p class="kicker">Endless</p><h1>Mix</h1></div><span class="pill" id="mixPill">Shuffle</span></div>
+      <div class="mix-card">
+        <div class="mix-art" id="radioArt"></div>
+        <div class="mix-mid"><b id="radioTitle">Nothing playing</b><span id="radioArtist">Tap play to start</span></div>
+        <button id="radioToggle" class="mix-play" aria-label="Play mix"></button>
+      </div>
+      <div class="row-head"><h2>Up next</h2></div>
+      <div id="radioNext" class="v-list"></div>
     </section>
 
     <!-- LIBRARY -->
     <section id="screen-library" class="screen">
-      <div class="greet">
-        <div><h1>Library</h1><p id="libSub">Your collection</p></div>
-        <div class="row-btns"><button class="glass-btn themeToggle" title="Dark / light mode"></button><button id="libAdd" class="glass-btn" title="Add music">＋</button><button id="libSettings" class="glass-btn" title="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
-      </div>
-      <div class="seg">
+      <div class="page-head"><div><p class="kicker">Collection</p><h1>Library</h1><p class="sub" id="libSub">Your collection</p></div><div class="row-btns"><button class="icon-btn themeToggle" title="Theme" aria-label="Theme"></button><button id="libAdd" class="icon-btn" title="Add music" aria-label="Add">＋</button><button id="libSettings" class="icon-btn" title="Settings" aria-label="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div></div>
+      <div class="seg" role="tablist">
         <button data-seg="songs" class="active">Songs</button>
         <button data-seg="folders">Folders</button>
         <button data-seg="playlists">Playlists</button>
@@ -72,72 +86,67 @@
       <div id="libFolders" class="v-list hidden"></div>
       <div id="libPlaylists" class="v-list hidden"></div>
       <div id="libLiked" class="v-list hidden"></div>
-      <button id="newPlaylistBtn" class="neon-btn ghost hidden">＋ New Playlist</button>
+      <button id="newPlaylistBtn" class="btn tonal hidden">＋ New playlist</button>
       <div style="height:14px"></div>
     </section>
   </main>
 
-  <!-- MINI PLAYER -->
   <div id="miniPlayer" class="mini hidden">
+    <div class="mini-prog"><span id="miniProg"></span></div>
     <div class="mini-cover" id="miniCover"></div>
     <div class="mini-meta"><b id="miniTitle">—</b><span id="miniArtist">—</span></div>
-    <div class="mini-prog"><span id="miniProg"></span></div>
-    <button id="miniPlay" class="mini-btn"></button>
-    <button id="miniNext" class="mini-btn"></button>
+    <button id="miniPlay" class="mini-btn" aria-label="Play"></button>
+    <button id="miniNext" class="mini-btn" aria-label="Next"></button>
   </div>
 
-  <!-- BOTTOM NAV -->
   <nav class="bottom-nav">
-    <button data-tab="home" class="active"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg><small>Home</small></button>
-    <button data-tab="new"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.7 5.7 1.9-5.7 1.9L12 18.2l-1.9-5.7L4.4 10.6l5.7-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><small>New</small></button>
-    <button data-tab="radio"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M4.9 19.1a10 10 0 0 1 0-14.2M7.8 16.4a6 6 0 0 1 0-8.8M16.2 7.6a6 6 0 0 1 0 8.8M19.1 4.9a10 10 0 0 1 0 14.2"/></svg><small>Radio</small></button>
-    <button data-tab="library"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><small>Library</small></button>
+    <button data-tab="home" class="active"><span class="nav-pill"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></span><small>Home</small></button>
+    <button data-tab="new"><span class="nav-pill"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><small>Songs</small></button>
+    <button data-tab="radio"><span class="nav-pill"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></span><small>Mix</small></button>
+    <button data-tab="library"><span class="nav-pill"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span><small>Library</small></button>
   </nav>
 
-  <!-- FULL PLAYER -->
   <div id="playerOverlay" class="player hidden">
-    <div class="pl-top"><button id="plBack" class="glass-btn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><button id="plMenu" class="glass-btn"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button></div>
+    <div class="grab"></div>
+    <div class="pl-top"><button id="plBack" class="icon-btn" aria-label="Close"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><span class="pill">Now playing</span><button id="plMenu" class="icon-btn" aria-label="More"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button></div>
     <div class="pl-art" id="plArt"></div>
-    <div class="pl-lyr" id="plLyrPreview">Lyrics will appear here</div>
     <div class="pl-title-row">
       <div class="pl-title-wrap"><h2 id="plTitle">—</h2><p id="plArtist">—</p></div>
-      <div class="row-btns"><button id="plLike" class="glass-btn"></button><button id="plQueueBtn" class="glass-btn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></button></div>
+      <button id="plLike" class="icon-btn" aria-label="Like"></button>
     </div>
-    <div class="pl-seek"><input type="range" id="plSeek" min="0" max="1000" value="0" /><div class="pl-times"><span id="plCur">0:00</span><span id="plDur">0:00</span></div></div>
+    <p class="pl-lyr" id="plLyrPreview">Lyrics will appear here</p>
+    <div class="pl-seek"><input type="range" id="plSeek" min="0" max="1000" value="0" aria-label="Seek" /><div class="pl-times"><span id="plCur">0:00</span><span id="plDur">0:00</span></div></div>
     <div class="pl-controls">
-      <button id="plShuffle" class="pl-btn"></button>
-      <button id="plPrev" class="pl-btn big"></button>
-      <button id="plPlay" class="pl-play"></button>
-      <button id="plNext" class="pl-btn big"></button>
-      <button id="plRepeat" class="pl-btn"></button>
+      <button id="plShuffle" class="pl-btn" aria-label="Shuffle"></button>
+      <button id="plPrev" class="pl-btn big" aria-label="Previous"></button>
+      <button id="plPlay" class="pl-play" aria-label="Play"></button>
+      <button id="plNext" class="pl-btn big" aria-label="Next"></button>
+      <button id="plRepeat" class="pl-btn" aria-label="Repeat"></button>
     </div>
+    <div class="pl-vol"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg><input type="range" id="plVol" min="0" max="100" value="100" aria-label="Volume" /><span id="plVolVal">100</span></div>
     <div class="pl-tools">
-      <button id="plLyricsBtn" class="glass-btn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></button>
-      <button id="plEqBtn" class="glass-btn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
-      <button id="plSleepBtn" class="glass-btn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+      <button id="plQueueBtn" class="tool"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Queue</button>
+      <button id="plLyricsBtn" class="tool"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Lyrics</button>
+      <button id="plEqBtn" class="tool"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>EQ</button>
+      <button id="plSleepBtn" class="tool"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>Sleep</button>
     </div>
   </div>
 
-  <!-- PLAYLIST / FOLDER PAGE -->
   <div id="listOverlay" class="player hidden">
-    <div class="pl-top"><button id="listBack" class="glass-btn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><b id="listTitle">Playlist</b><span style="width:44px"></span></div>
+    <div class="grab"></div>
+    <div class="pl-top"><button id="listBack" class="icon-btn" aria-label="Back"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><b id="listTitle">Playlist</b><span style="width:40px"></span></div>
     <p id="listSub" class="muted center"></p>
-    <div class="row-btns center" style="justify-content:center;display:flex;gap:10px;margin-bottom:12px">
-      <button id="listPlayAll" class="neon-btn small">Play all</button>
-      <button id="listShuffle" class="neon-btn small ghost">Shuffle</button>
-      <button id="listAddSongs" class="neon-btn small ghost">＋ Add songs</button>
-    </div>
+    <div class="btn-row"><button id="listPlayAll" class="btn solid sm">Play all</button><button id="listShuffle" class="btn tonal sm">Shuffle</button><button id="listAddSongs" class="btn tonal sm">＋ Add songs</button></div>
     <div id="listSongs" class="v-list"></div>
   </div>
 </div>
 
-<!-- SHEET -->
 <div id="sheetBack" class="sheet-back hidden"><div class="sheet" id="sheetBox"></div></div>
 <div id="toastWrap" class="toasts"></div>
 <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.webm,.opus" multiple hidden />
 <input type="file" id="folderInput" webkitdirectory multiple hidden />
 <input type="file" id="importFile" accept="application/json" hidden />
-<audio id="audio" crossorigin="anonymous" preload="metadata"></audio>
+<audio id="audio" preload="metadata"></audio>
 
 <script src="app.js"></script>
 <script>

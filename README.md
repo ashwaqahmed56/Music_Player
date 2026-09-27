@@ -1,20 +1,25 @@
-# 🎧 Ash's Player (v2.1 — standalone offline app)
+# Ash's Player (v3 Terra — standalone offline app)
 
-Simple, mobile-first music player. Now a **real standalone APK**: app files live
-*inside* the app — it opens instantly with **zero internet**.
+Warm, simple offline music player. Flat paper/espresso surfaces, one clay accent
+(plus moss/ochre/slate/plum), serif headlines — rebuilt layout, zero glow,
+zero gradients, zero AI-slop. A **real standalone APK**: app files live *inside*
+the app — opens instantly with **zero internet**.
 
-## ✨ What's inside
-- 🏠 **Home** — greeting, search, Popular Songs, playlists, recently played
-- ✨ **New** — latest additions + Add Music
-- 📻 **Radio** — endless shuffle mix
-- 🎶 **Library** — Songs / 📁 Folders / Playlists / ♥ Liked
-- 📁 **Folder import** — pick a whole folder, its songs stay grouped separately
-  with counts + total time, play-all/shuffle per folder, remove folder anytime
-- ▶ Full player — big art, progress, shuffle/repeat, volume, lyrics, EQ, sleep, queue
-- 🎚️ Equalizer, 📝 lyrics, 😴 sleep timer, ☆ favorites
-- 📴 **Fully offline** — your songs play without internet (📶 badge = demo songs
-  that need internet; everything you add works offline)
-- 🔒 Everything stays on your device
+## What's inside
+- **Home** — greeting, search, Popular Songs, playlists, recently played
+- **New** — latest additions + Add Music (newest/oldest)
+- **Radio** — endless shuffle mix (proper on/off state, no longer stuck on)
+- **Library** — Songs / Folders / Playlists / Liked, A–Z sorting
+- **Folder import** — pick files, a folder, or scan a whole folder; songs stay
+  grouped with counts + total time, play-all/shuffle queues the rest, remove
+  folder anytime; duplicate imports are skipped
+- Full player — big art, seek + volume, shuffle/repeat, lyrics, EQ, sleep, queue
+- Equalizer (applies from next song, so it can never mute playback), lyrics,
+  sleep timer with volume fade restore, favorites, backup export/import
+- Theme: Dark / Light / System + 6 accent colors (Oto-style)
+- **Fully offline** — your songs play without internet (demo songs need internet;
+  everything you add works offline)
+- Everything stays on your device (IndexedDB + localStorage)
 
 ## 🖥️ Test on PC
 Double-click `start-pc.bat` → `http://localhost:8000` (phone-size column is normal).

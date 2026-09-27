@@ -1,8 +1,11 @@
 {
-  "appId": "io.github.ashwaqahmed56.twa",
+  "appId": "com.ashs.player",
   "appName": "Ash's Player",
   "webDir": "www",
   "backgroundColor": "#0b0b0e",
+  "server": {
+    "androidScheme": "https"
+  },
   "android": {
     "allowMixedContent": false,
     "captureInput": true
