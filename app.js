@@ -1,4 +1,4 @@
-const APP_VERSION='4.5';
+const APP_VERSION='4.6';
 'use strict';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -261,7 +261,7 @@ audio.addEventListener('loadedmetadata',()=>{ const t=getT(currentId); if(!t||!a
   const d=Math.round(audio.duration);
   if(t.source==='local'){ const prev=store.localMeta[t.id]||{}; prev.duration=d; store.localMeta[t.id]=prev; save(); }
   else if(!t.duration){ t.duration=d; }
-  try{ notifReset(); syncNotif(); }catch(e){} });
+  try{ mcUpdateElapsed(); }catch(e){} });
 audio.addEventListener('error',()=>{ const t=getT(currentId); if(t&&/^https?:/i.test(t.src||'')&&audio.crossOrigin){ try{ audio.removeAttribute('crossorigin'); audio.crossOrigin=null; audio.src=t.src; audio.play().catch(()=>{}); }catch(e){} } });
 audio.addEventListener('ended',()=>{ if(store.prefs.repeat==='one'){ audio.currentTime=0; audio.play().catch(()=>{}); return; }
   if(store.prefs.autoplay||store.radio||queue.length) next(true); });
@@ -604,7 +604,8 @@ function mcUpdatePlaying(MC, playing){
 }
 function mcUpdateElapsed(){
   try{ const MC=mcPlugin(); if(!MC||!store.prefs.notif) return; const t=getT(currentId); if(!t) return;
-    if(MC.updateElapsed){ const r=MC.updateElapsed({isPlaying:!audio.paused, elapsed:Math.max(0,Math.floor(audio.currentTime||0))}); if(r&&r.catch) r.catch(()=>{}); }
+    if(MC.updateElapsed){ const dur=Math.max(0,Math.round((t.duration||audio.duration||0)*1000));
+      const r=MC.updateElapsed({isPlaying:!audio.paused, elapsed:Math.max(0,Math.floor((audio.currentTime||0)*1000)), duration:dur}); if(r&&r.catch) r.catch(()=>{}); }
   }catch(e){}
 }
 function syncNotif(){
@@ -629,7 +630,8 @@ function syncNotif(){
     if(!appVisible()){
       _lastNotifPlaying=playing;
       mcUpdatePlaying(MC, playing);
-      try{ if(MC.updateElapsed){ const r=MC.updateElapsed({isPlaying:playing, elapsed:Math.max(0,Math.floor(audio.currentTime||0))}); r&&r.catch&&r.catch(()=>{}); } }catch(e){}
+      try{ if(MC.updateElapsed){ const dur=Math.max(0,Math.round((t.duration||audio.duration||0)*1000));
+        const r=MC.updateElapsed({isPlaying:playing, elapsed:Math.max(0,Math.floor((audio.currentTime||0)*1000)), duration:dur}); r&&r.catch&&r.catch(()=>{}); } }catch(e){}
       return;
     }
     _lastNotifId=t.id; _lastNotifPlaying=playing;
@@ -637,9 +639,9 @@ function syncNotif(){
       if(!store.prefs.notif||_lastNotifId!==t.id) return;
       try{ const r=MC.create({ track:t.title||'Unknown', artist:t.artist||'Unknown artist', album:t.album||"Ash's Player", cover:cover||'',
         isPlaying:!audio.paused, dismissable:false, hasPrev:true, hasNext:true, hasClose:true,
-        ticker:'Now playing "'+(t.title||'music')+'"',
-        notificationIcon:'ashs_note', playIcon:'ashs_play', pauseIcon:'ashs_pause', prevIcon:'ashs_prev', nextIcon:'ashs_next', closeIcon:'ashs_close',
-        duration:Math.max(0,Math.round(t.duration||audio.duration||0)), elapsed:Math.max(0,Math.floor(audio.currentTime||0)) });
+      ticker:'Now playing "'+(t.title||'music')+'"',
+      notificationIcon:'ashs_note', playIcon:'ashs_play', pauseIcon:'ashs_pause', prevIcon:'ashs_prev', nextIcon:'ashs_next', closeIcon:'ashs_close',
+      duration:Math.max(0,Math.round((t.duration||audio.duration||0)*1000)), elapsed:Math.max(0,Math.floor((audio.currentTime||0)*1000)) });
         r&&r.catch&&r.catch(()=>{ notifReset(); });
       }catch(e){ notifReset(); }
     });

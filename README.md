@@ -36,8 +36,9 @@ app — opens instantly with **zero internet**.
 - Equalizer (applies from next song), sleep timer with volume fade restore,
   favorites, backup export/import
 - Theme follows the system by default (Dark / Light / System), accent tuned per theme
-- Lock-screen + background controls (Android notification with custom icons
-  and album art, progress bar included)
+- Lock-screen + background controls (Android notification with custom icons,
+  album art, working seek bar and progress — notification updates in place,
+  never flickers)
 - **Fully offline** — everything stays on your device
 
 ## 🖥️ Test on PC

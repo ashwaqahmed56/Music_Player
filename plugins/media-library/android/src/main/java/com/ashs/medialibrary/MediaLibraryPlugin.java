@@ -15,6 +15,9 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import android.content.ContentResolver;
+import android.content.Intent;
+import android.net.Uri;
 import java.io.File;
 
 /**
@@ -40,11 +43,27 @@ public class MediaLibraryPlugin extends Plugin {
     @PluginMethod
     public void listAudio(PluginCall call) {
         try {
-            // If already granted this resolves straight to the callback with no dialog.
             requestPermissionForAlias(audioAlias(), call, "audioPermsCallback");
         } catch (Exception e) {
             call.reject("Scan failed: " + e.getMessage());
         }
+    }
+
+    @PluginMethod
+    public void deleteAudio(PluginCall call) {
+        String uri = call.getString("uri");
+        if (uri == null || uri.isEmpty()) { call.reject("No uri"); return; }
+        try {
+            ContentResolver resolver = getContext().getContentResolver();
+            int n = resolver.delete(Uri.parse(uri), null, null);
+            call.resolve(new JSObject().put("deleted", n > 0));
+        } catch (SecurityException se) {
+            try {
+                Intent intent = new Intent(Intent.ACTION_DELETE, Uri.parse(uri));
+                getActivity().startActivity(intent);
+                call.resolve(new JSObject().put("deleted", true));
+            } catch (Exception e2) { call.reject("Delete failed: " + e2.getMessage()); }
+        } catch (Exception e) { call.reject("Delete failed: " + e.getMessage()); }
     }
 
     @PermissionCallback

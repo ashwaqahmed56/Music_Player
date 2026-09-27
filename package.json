@@ -1,6 +1,6 @@
 {
   "name": "ashs-player",
-  "version": "4.5.0",
+  "version": "4.6.0",
   "private": true,
   "scripts": {
     "sync": "npx cap sync android"
@@ -11,7 +11,7 @@
     "@capacitor/core": "^6.0.0",
     "@capacitor/filesystem": "^6.0.0",
     "@capacitor/local-notifications": "^6.0.0",
-    "capacitor-music-controls-plugin": "6.1.0",
+    "capacitor-music-controls-plugin": "file:plugins/music-controls",
     "ashs-media-library": "file:plugins/media-library"
   },
   "devDependencies": {
