@@ -45,7 +45,6 @@ jobs:
           mkdir -p www
           cp index.html styles.css app.js manifest.json sw.js icon.svg icon-192.png icon-512.png www/
           cp .nojekyll www/ 2>/dev/null || true
-          cp -r .well-known www/ 2>/dev/null || true
 
       - name: Add + sync Android platform
         run: |
