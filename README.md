@@ -11,8 +11,8 @@ app — opens instantly with **zero internet**.
 - **Search that stays out of the way** — Home search opens its own results
   (songs, albums, artists); Songs and Library have their own independent search.
   Typing in one place never rearranges another.
-- **Songs** — full list loads at once, A–Z rail jumps to any letter, latest
-  additions + Add Music (newest/oldest)
+- **Songs** — full list loads at once, latest additions + Add Music
+  (newest/oldest), multi-select for bulk delete and playlist building
 - **Mix** — endless shuffle mix with live queue
 - **Library** — Playlists / Folders with counts and total time
 - Battery-friendly: lists repaint only when the library changes, animations

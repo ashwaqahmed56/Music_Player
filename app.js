@@ -1,4 +1,4 @@
-const APP_VERSION='4.4';
+const APP_VERSION='4.5';
 'use strict';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -197,6 +197,7 @@ const ICONS={
   plus:_ic('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'),
 };
 
+let playSeq=0, lastGoodSrc='';
 function playTrack(id, opts){
   try{
   const t=getT(id); if(!t){ toast('Song not found'); return; }
@@ -206,12 +207,17 @@ function playTrack(id, opts){
   setSrcSafe(t);
   audio.playbackRate=store.prefs.speed||1;
   if(opts.open){ $('#listOverlay').classList.add('hidden'); $('#playerOverlay').classList.remove('hidden'); }
+  const seq=++playSeq;
   const doPlay=()=>audio.play().then(()=>{
+    if(seq!==playSeq) return;
     currentId=id; store.currentId=id;
+    try{ lastGoodSrc=audio.src||t.src; }catch(e){}
     store.recents=[id,...store.recents.filter(x=>x!==id)].slice(0,50);
     store.playCounts[id]=(store.playCounts[id]||0)+1; save(); bumpLib();
     render(); mediaSession();
   }).catch(err=>{ console.warn(err);
+    if(seq!==playSeq) return;
+    try{ if(lastGoodSrc&&audio.src!==lastGoodSrc) audio.src=lastGoodSrc; }catch(e){}
     if(!isFinite(audio.duration) && /^https?:/i.test(t.src||'')){
       try{ audio.removeAttribute('crossorigin'); audio.crossOrigin=null; audio.src=t.src; return audio.play().catch(()=>toast(!navigator.onLine&&t.source==='demo'?'Demo songs need internet':'Could not play this file')); }catch(e){}
     }
@@ -252,8 +258,10 @@ audio.addEventListener('timeupdate',()=>{
   try{ const nt=Date.now(); if(nt-_lastElapsedPush>30000&&!document.hidden){ _lastElapsedPush=nt; mcUpdateElapsed(); } }catch(e){}
 });
 audio.addEventListener('loadedmetadata',()=>{ const t=getT(currentId); if(!t||!audio.duration||!isFinite(audio.duration)) return;
-  if(t.source==='local'){ const prev=store.localMeta[t.id]||{}; prev.duration=Math.round(audio.duration); store.localMeta[t.id]=prev; save(); }
-  else if(t.source==='device' && !t.duration){ t.duration=Math.round(audio.duration); } });
+  const d=Math.round(audio.duration);
+  if(t.source==='local'){ const prev=store.localMeta[t.id]||{}; prev.duration=d; store.localMeta[t.id]=prev; save(); }
+  else if(!t.duration){ t.duration=d; }
+  try{ notifReset(); syncNotif(); }catch(e){} });
 audio.addEventListener('error',()=>{ const t=getT(currentId); if(t&&/^https?:/i.test(t.src||'')&&audio.crossOrigin){ try{ audio.removeAttribute('crossorigin'); audio.crossOrigin=null; audio.src=t.src; audio.play().catch(()=>{}); }catch(e){} } });
 audio.addEventListener('ended',()=>{ if(store.prefs.repeat==='one'){ audio.currentTime=0; audio.play().catch(()=>{}); return; }
   if(store.prefs.autoplay||store.radio||queue.length) next(true); });
@@ -320,8 +328,8 @@ function trackRow(t, opts){
 let selecting=false, selected=new Set(), lastSongsVis=[];
 function setSelecting(on){ selecting=!!on; if(!selecting) selected.clear();
   const st=$('#selectToggle'); if(st) st.textContent=selecting?'Cancel':'Select';
-  render(); }
-function toggleSelect(id){ if(selected.has(id)) selected.delete(id); else selected.add(id); render(); }
+  bumpLib(); render(); }
+function toggleSelect(id){ if(selected.has(id)) selected.delete(id); else selected.add(id); bumpLib(); render(); }
 function paintSongsList(){
   const el=$('#newList'); if(!el) return;
   const nl=searchFilter(all(),songsQ).slice().sort((a,b)=> store.prefs.newSort==='old'
@@ -330,45 +338,10 @@ function paintSongsList(){
   el.innerHTML='';
   if(!nl.length) el.innerHTML=`<p class="muted center">${songsQ?`No matches for “${songsQ}”`:'Nothing here yet — add music to get started'}</p>`;
   nl.forEach(t=>el.appendChild(trackRow(t, selecting?{select:{checked:selected.has(t.id), onToggle:()=>toggleSelect(t.id)}}:null)));
-  paintAlphaRail(nl);
   const bar=$('#selBar'); if(bar){ bar.classList.toggle('hidden',!selecting);
     const c=$('#selCount'); if(c) c.textContent=selected.size+' selected'; }
 }
-function paintAlphaRail(nl){
-  const rail=$('#alphaRail'); if(!rail) return;
-  rail.innerHTML='';
-  const abc='ABCDEFGHIJKLMNOPQRSTUVWXYZ#';
-  if(nl.length<30){ rail.classList.add('hidden'); return; }
-  rail.classList.remove('hidden');
-  const present=new Set(nl.map(t=>letterOf(t.title)));
-  [...abc].forEach(L=>{ const b=document.createElement('button'); b.textContent=L;
-    if(!present.has(L)) b.classList.add('dim');
-    b.setAttribute('aria-label','Jump to '+L); b.dataset.l=L;
-    b.onclick=()=>jumpToLetter(L); rail.appendChild(b); });
-  updateAlphaActive();
-}
-function jumpToLetter(L){
-  try{ const el=$('#newList'); if(!el) return;
-    const rows=el.querySelectorAll('[data-l]');
-    for(const r of rows){ if((r.dataset.l||'#')===L){
-      try{ r.scrollIntoView({block:'start',behavior:'smooth'}); }catch(e){ try{r.scrollIntoView();}catch(_){} }
-      r.classList.add('landed'); setTimeout(()=>{ try{r.classList.remove('landed');}catch(e){} },950);
-      break; } }
-  }catch(e){}
-}
-let alphaT=null;
-function updateAlphaActive(){ clearTimeout(alphaT); alphaT=setTimeout(updateAlphaActiveNow,150); }
-function updateAlphaActiveNow(){
-  try{
-    const act=document.querySelector('.screen.active');
-    if(!act||act.id!=='screen-new') return;
-    const rail=$('#alphaRail'); if(!rail||rail.classList.contains('hidden')) return;
-    const box=rail.getBoundingClientRect().top+40;
-    let cur='#';
-    document.querySelectorAll('#newList [data-l]').forEach(r=>{ if(r.getBoundingClientRect().top<=box) cur=r.dataset.l||'#'; });
-    rail.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.l===cur));
-  }catch(e){}
-}
+
 function moveInList(arr,i,dir){ if(i<0) return false; const j=i+dir; if(j<0||j>=arr.length) return false; const [x]=arr.splice(i,1); arr.splice(j,0,x); return true; }
 function purgeTrackMeta(tid){
   store.likes=store.likes.filter(x=>x!==tid);
@@ -447,7 +420,7 @@ function renderLists(){
 }
 function renderState(){
   rebuild();
-  paintSpot('hero'); paintHero('ns'); paintHero('lb');
+  paintHero('hero'); paintHero('ns'); paintHero('lb');
   const mPill=$('#mixPill'); if(mPill) mPill.textContent=store.radio?'Mix on':'Shuffle';
   try{ document.documentElement.classList.toggle('is-playing',!!(currentId&&!audio.paused)); }catch(e){}
   paintOverlays();
@@ -461,8 +434,10 @@ function renderState(){
     else if(rt){ ra.textContent=(rt.title||'R')[0].toUpperCase(); ra.style.cssText=artStyle(rt); }
     else { ra.innerHTML=ICONS.radio; ra.style.cssText=''; } }
   const rn=$('#radioNext'); if(rn) paint(rn, queue.map(getT).filter(Boolean).slice(0,3), store.radio?'Shuffle mix is on — enjoy':'Queue is empty');
+  if(currentId&&!getT(currentId)){ currentId=null; store.currentId=null; try{audio.pause();}catch(e){} save(); }
   const playing=currentId&&!audio.paused;
   const mp=$('#miniPlayer'); if(mp) mp.classList.toggle('hidden',!currentId);
+  if(!rt){ const mt0=$('#miniTitle'); if(mt0) mt0.textContent='—'; const ma0=$('#miniArtist'); if(ma0) ma0.textContent='—'; }
   if(rt){
     const mt=$('#miniTitle'); if(mt) mt.textContent=rt.title;
     const ma=$('#miniArtist'); if(ma) ma.textContent=rt.artist;
@@ -527,8 +502,6 @@ function paintHeroCard(p,t,kick){
     nx.onclick=e=>{ e.stopPropagation(); if(currentId===t.id) next(); else playTrack(t.id,{open:true}); }; }
 }
 function paintHero(p){ paintHeroCard(p, getT(currentId)||all()[0]); }
-function mostPlayed(){ let best=null,bn=0; try{ all().forEach(t=>{ const n=store.playCounts[t.id]||0; if(n>bn){ bn=n; best=t; } }); }catch(e){} return best||all()[0]||null; }
-function paintSpot(p){ paintHeroCard(p, mostPlayed(), 'Spotlight · most played'); }
 function tickHeroProg(){
   [['heroProg','heroCard'],['nsProg','nsCard'],['lbProg','lbCard']].forEach(([pid,cid])=>{
     const e=document.getElementById(pid); if(!e) return;
@@ -681,8 +654,7 @@ function tab(name){ closeSearchOverlay(); if(selecting) setSelecting(false);
   $$('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   $$('.screen').forEach(s=>{ s.classList.remove('active'); s.classList.remove('fwd','back'); });
   const sc=$('#screen-'+name); sc.classList.add('active');
-  try{ void sc.offsetWidth; }catch(e){} sc.classList.add(dir);
-  const ar2=$('#alphaRail'); if(ar2) ar2.classList.toggle('hidden', name!=='new'||lastSongsVis.length<30); }
+  try{ void sc.offsetWidth; }catch(e){} sc.classList.add(dir); }
 
 function sheet(html){ $('#sheetBox').innerHTML='<div class="grab"></div>'+html; $('#sheetBack').classList.remove('hidden'); }
 function closeSheet(){ queueOpen=false; $('#sheetBack').classList.add('hidden'); }
@@ -1295,7 +1267,6 @@ function bind(){
   swipeDownClose($('#playerOverlay'),()=>$('#playerOverlay').classList.add('hidden'));
   swipeDownClose($('#listOverlay'),()=>$('#listOverlay').classList.add('hidden'));
   swipeDownClose($('#searchOverlay'),()=>closeSearchOverlay());
-  const scroller=document.querySelector('.screens'); if(scroller) scroller.addEventListener('scroll',()=>updateAlphaActive(),{passive:true});
   let tx=0, ty=0; const fp=$('#playerOverlay');
   fp.addEventListener('touchstart',e=>{ tx=e.touches[0].clientX; ty=e.touches[0].clientY; },{passive:true});
   fp.addEventListener('touchend',e=>{
