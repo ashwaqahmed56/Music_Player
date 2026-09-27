@@ -1,8 +1,9 @@
 # Ash's Player (offline-first music app)
 
-Simple offline music player with a warm paper/espresso look, earthy accents and
-serif headlines. A **real standalone APK**: app files live *inside* the app —
-opens instantly with **zero internet**.
+Simple offline music player with soft frosted-glass cards, true OLED black dark
+mode, a warm soothing light mode, one peach glow accent and serif headlines.
+A **real standalone APK**: app files live *inside* the app — opens instantly
+with **zero internet**.
 
 ## What's inside
 - **Home** — greeting, search with results overlay, popular tracks, playlists,

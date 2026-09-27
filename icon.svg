@@ -1,7 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#201d1b"/>
-  <rect x="72" y="72" width="368" height="368" rx="88" fill="#d97a4a"/>
-  <text x="256" y="340" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="220" fill="#fff">A</text>
-  <circle cx="392" cy="368" r="52" fill="#f2ece3"/>
-  <polygon points="380,342 412,368 380,394" fill="#201d1b"/>
+  <defs>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".26"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".07"/>
+    </linearGradient>
+    <radialGradient id="peach" cx="0.5" cy="0.42" r="0.7">
+      <stop offset="0" stop-color="#f2c09b"/>
+      <stop offset="1" stop-color="#c27346"/>
+    </radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#000000"/>
+  <rect x="64" y="64" width="384" height="384" rx="92" fill="url(#glass)" stroke="#ffffff" stroke-opacity=".25" stroke-width="3"/>
+  <circle cx="256" cy="262" r="122" fill="#e9a87f" opacity=".45" filter="url(#soft)"/>
+  <circle cx="256" cy="256" r="102" fill="url(#peach)"/>
+  <polygon points="236,202 236,310 328,256" fill="#ffffff"/>
+  <ellipse cx="200" cy="150" rx="130" ry="56" fill="#ffffff" opacity=".12"/>
 </svg>

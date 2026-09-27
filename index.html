@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Ash's Player</title>
 <meta name="description" content="Ash's Player - warm, simple offline music player" />
-<meta name="theme-color" content="#161412" />
+<meta name="theme-color" content="#000000" />
 <meta name="color-scheme" content="dark light" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
@@ -33,8 +33,10 @@
 
       <div class="hero" id="heroCard">
         <div class="hero-art" id="heroArt">♪</div>
-        <div class="hero-mid"><span class="kicker" id="heroKick">Ready</span><b id="heroTitle">Add your music</b><span id="heroSub">Plays offline, stays on device</span></div>
+        <div class="hero-mid"><span class="kicker" id="heroKick">Ready</span><b id="heroTitle">Add your music</b><span id="heroSub">Plays offline, stays on device</span>
+          <div class="hero-prog"><span id="heroProg"></span></div></div>
         <button class="hero-play" id="heroPlay" aria-label="Play"></button>
+        <button class="hero-next" id="heroNext" aria-label="Next"></button>
       </div>
 
       <div class="quick-row">
@@ -55,6 +57,13 @@
     
     <section id="screen-new" class="screen">
       <div class="page-head"><div><p class="kicker">Browse</p><h1>Songs</h1></div><button id="addMusicBtn2" class="btn solid">＋ Add</button></div>
+      <div class="hero" id="nsCard">
+        <div class="hero-art" id="nsArt">♪</div>
+        <div class="hero-mid"><span class="kicker" id="nsKick">Now playing</span><b id="nsTitle">—</b><span id="nsSub">—</span>
+          <div class="hero-prog"><span id="nsProg"></span></div></div>
+        <button class="hero-play" id="nsPlay" aria-label="Play"></button>
+        <button class="hero-next" id="nsNext" aria-label="Next"></button>
+      </div>
       <label class="search-field sm"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="songsSearch" placeholder="Search songs..." autocomplete="off" /><button id="clearSongsSearch" class="hidden" aria-label="Clear">✕</button></label>
       <div class="chips" id="newSortRow"></div>
       <div id="newList" class="v-list"></div>
@@ -76,6 +85,13 @@
     
     <section id="screen-library" class="screen">
       <div class="page-head"><div><p class="kicker">Collection</p><h1>Library</h1><p class="sub" id="libSub">Your collection</p></div><div class="row-btns"><button class="icon-btn themeToggle" title="Theme" aria-label="Theme"></button><button id="libAdd" class="icon-btn" title="Add music" aria-label="Add">＋</button><button id="libSettings" class="icon-btn" title="Settings" aria-label="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div></div>
+      <div class="hero" id="lbCard">
+        <div class="hero-art" id="lbArt">♪</div>
+        <div class="hero-mid"><span class="kicker" id="lbKick">Now playing</span><b id="lbTitle">—</b><span id="lbSub">—</span>
+          <div class="hero-prog"><span id="lbProg"></span></div></div>
+        <button class="hero-play" id="lbPlay" aria-label="Play"></button>
+        <button class="hero-next" id="lbNext" aria-label="Next"></button>
+      </div>
       <div class="seg" role="tablist">
         <button data-seg="songs" class="active">Songs</button>
         <button data-seg="albums">Albums</button>
