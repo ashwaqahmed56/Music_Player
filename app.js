@@ -1,4 +1,4 @@
-const APP_VERSION='3.9';
+const APP_VERSION='4.1';
 'use strict';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -27,7 +27,7 @@ function defStore(){ return {
   likes:[], playlists:[], folders:[], recents:[], playCounts:{}, addedAt:{}, lyrics:{},
   volumes:{vol:100}, prefs:{shuffle:false, repeat:'off', speed:1, autoplay:true, theme:'system', accent:'clay', songSort:'az', newSort:'new', notif:true},
   eq:{enabled:false, gains:[0,0,0,0,0], preset:'Normal'},
-  localMeta:{}, customTitles:{}, currentId:null, radio:false
+  localMeta:{}, customTitles:{}, hiddenTracks:[], currentId:null, radio:false
 };}
 let store = (()=>{ try{ const r=localStorage.getItem(LS_KEY); if(r){ const d=defStore(); return Object.assign(d, JSON.parse(r)); } }catch(e){} return defStore(); })();
 function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
@@ -37,7 +37,8 @@ let coverCache = {}, coversLoaded = false, coverQueue = [], coverRunning = false
 function hashHue(name){ let h=0; const s=String(name||'?'); for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))%360; } return h; }
 function rebuild(){
   const base = (localTracks.length||deviceTracks.length) ? [] : DEMO.map(d=>({...d}));
-  cache = [...localTracks, ...deviceTracks, ...base];
+  const hid=store.hiddenTracks||[];
+  cache = [...localTracks, ...deviceTracks.filter(t=>!hid.includes(t.id)), ...base];
   cache.forEach(t=>{
     const c=store.customTitles[t.id]; if(c){ t.title=c.title||t.title; t.artist=c.artist||t.artist; if(c.album!=null) t.album=c.album; }
     const m=store.localMeta[t.id];
@@ -79,7 +80,8 @@ async function scanDevice(opts){
     }catch(e){}
   }
   const groups={};
-  deviceTracks.forEach(t=>{ const g=t.folder||'Device Music'; (groups[g]=groups[g]||[]).push(t.id); });
+  const hidT=store.hiddenTracks||[];
+  deviceTracks.forEach(t=>{ if(hidT.includes(t.id)) return; const g=t.folder||'Device Music'; (groups[g]=groups[g]||[]).push(t.id); });
   const hidden=store.hiddenDeviceFolders||[];
   store.folders=store.folders.filter(f=>f.kind!=='device');
   Object.keys(groups).sort().forEach(g=>{
@@ -544,6 +546,19 @@ function mcHandle(message, pos){
     try{ if(s>0&&audio.duration&&isFinite(audio.duration)) audio.currentTime=Math.min(s,audio.duration); }catch(e){} }
   else if(message==='music-controls-destroy'){ try{audio.pause();}catch(e){} notifReset(); }
 }
+async function notifCover(httpCover){
+  if(httpCover) return httpCover;
+  try{
+    const C=window.Capacitor;
+    const FS=C&&C.Plugins&&C.Plugins.Filesystem;
+    if(!C||!C.isNativePlatform||!C.isNativePlatform()||!FS||!FS.writeFile) return '';
+    const t=getT(currentId); if(!t||!t.coverUrl) return '';
+    const m=/^data:(image\/\w+);base64,([\s\S]*)$/.exec(t.coverUrl||'');
+    if(!m||m[2].length>400000) return '';
+    const r=await FS.writeFile({path:'ashs_cover.jpg', data:m[2], directory:'CACHE'});
+    return (r&&r.uri)||'';
+  }catch(e){ return ''; }
+}
 function mcUpdatePlaying(MC, playing){
   try{ const r=MC.updateIsPlaying({isPlaying:playing});
     if(r&&r.catch) r.catch(()=>{ _lastNotifPlaying=null; });
@@ -572,15 +587,18 @@ function syncNotif(){
       try{ MC.addListener&&MC.addListener('controlsNotification',function(info){ mcHandle(info&&(info.message||info), info&&(info.position||0)); }); }catch(e){}
       try{ document.addEventListener('controlsNotification',function(ev){ mcHandle(ev&&(ev.message||''), ev&&(ev.position||0)); }); }catch(e){}
     }
-    const cover=(t.coverUrl&&isPublicHttp(t.coverUrl))?t.coverUrl:'';
+    const httpCover=(t.coverUrl&&isPublicHttp(t.coverUrl))?t.coverUrl:'';
     if(!trackChanged){ mcUpdatePlaying(MC, playing); return; }
-    try{ const r=MC.create({ track:t.title||'Unknown', artist:t.artist||'Unknown artist', album:t.album||"Ash's Player", cover:cover||'',
-      isPlaying:playing, dismissable:false, hasPrev:true, hasNext:true, hasClose:true,
-      ticker:'Now playing "'+(t.title||'music')+'"',
-      notificationIcon:'', playIcon:'', pauseIcon:'', prevIcon:'', nextIcon:'', closeIcon:'',
-      duration:Math.max(0,Math.round(t.duration||audio.duration||0)), elapsed:Math.max(0,Math.floor(audio.currentTime||0)) });
-      r&&r.catch&&r.catch(()=>{ notifReset(); });
-    }catch(e){ notifReset(); }
+    notifCover(httpCover).then(cover=>{
+      if(_lastNotifId!==t.id) return;
+      try{ const r=MC.create({ track:t.title||'Unknown', artist:t.artist||'Unknown artist', album:t.album||"Ash's Player", cover:cover||'',
+        isPlaying:!audio.paused, dismissable:false, hasPrev:true, hasNext:true, hasClose:true,
+        ticker:'Now playing "'+(t.title||'music')+'"',
+        notificationIcon:'ashs_note', playIcon:'ashs_play', pauseIcon:'ashs_pause', prevIcon:'ashs_prev', nextIcon:'ashs_next', closeIcon:'ashs_close',
+        duration:Math.max(0,Math.round(t.duration||audio.duration||0)), elapsed:Math.max(0,Math.floor(audio.currentTime||0)) });
+        r&&r.catch&&r.catch(()=>{ notifReset(); });
+      }catch(e){ notifReset(); }
+    });
   }catch(e){}
 }
 
@@ -601,6 +619,7 @@ function songMenu(id){ const t=getT(id); if(!t) return; const liked=store.likes.
   <button class="opt" id="mLyr">Lyrics</button>
   <button class="opt" id="mRen">Rename</button>
   ${t.source==='local'?'<button class="opt danger" id="mDel">Delete from library</button>':''}
+  ${t.source==='device'?'<button class="opt danger" id="mHide">Remove from library</button>':''}
   <button class="opt" id="mX">Close</button>`);
   $('#mX').onclick=closeSheet;
   $('#mPlay').onclick=()=>{ closeSheet(); playTrack(id,{open:true}); };
@@ -619,6 +638,11 @@ function songMenu(id){ const t=getT(id); if(!t) return; const liked=store.likes.
     purgeTrackMeta(id);
     if(currentId===id){ try{audio.pause();}catch(e){} currentId=null; store.currentId=null; }
     await loadLocal(); save(); closeSheet(); render(); toast('Deleted'); };
+  const hide=$('#mHide'); if(hide) hide.onclick=()=>{ if(!confirm('Remove this song from the library? (file stays on device)'))return;
+    store.hiddenTracks=store.hiddenTracks||[];
+    if(!store.hiddenTracks.includes(id)) store.hiddenTracks.push(id);
+    if(currentId===id){ try{audio.pause();}catch(e){} currentId=null; store.currentId=null; }
+    save(); closeSheet(); render(); toast('Removed — file kept on device'); };
 }
 function plPicker(id){
   sheet(`<h2>Add to playlist</h2>${store.playlists.length?store.playlists.map(p=>`<button class="opt" data-p="${p.id}">${esc(p.name)} (${p.trackIds.length})</button>`).join(''):'<p class="muted">No playlists yet</p>'}<button class="opt" id="pNew">New playlist</button><button class="opt" id="pX">Close</button>`);
@@ -709,7 +733,7 @@ async function settingsSheet(){
   <div class="chips"><button id="sSpR">Reset speed to 1.00x</button></div>
   <h3>Notifications</h3><label class="switch"><input type="checkbox" id="sNotif" ${store.prefs.notif?'checked':''}/> Lock-screen + background controls</label><p class="muted" id="diagLine" style="font-size:13px">Checking…</p><p class="muted" style="font-size:12.5px">Android 13+: allow Notifications when asked, or the player cannot appear on the lock screen.</p>
   <label class="switch"><input type="checkbox" id="sAu" ${store.prefs.autoplay?'checked':''}/> Autoplay next song</label>
-  <h3>Library</h3><button class="opt" id="sEx">Export backup</button><button class="opt" id="sIm">Import backup</button><button class="opt danger" id="sRe">Reset everything</button>
+  <h3>Library</h3><button class="opt" id="sEx">Export backup</button><button class="opt" id="sIm">Import backup</button>${(store.hiddenTracks||[]).length?`<button class="opt" id="sUn">Restore ${(store.hiddenTracks||[]).length} hidden songs</button>`:''}<button class="opt danger" id="sRe">Reset everything</button>
   <h3>Diagnostics</h3><p class="muted" id="diagErr" style="font-size:13px">Last error: none</p><p class="muted" id="diagLib" style="font-size:13px"></p>
   <p class="muted">Ash's Player v${APP_VERSION} · offline music</p><button class="opt" id="sX">Close</button>`);
   $('#sX').onclick=closeSheet;
@@ -732,6 +756,7 @@ async function settingsSheet(){
   $('#sEx').onclick=()=>{ try{ const b=new Blob([JSON.stringify({store,at:new Date().toISOString()},null,2)],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='ashs-player-backup.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); toast('Exported'); }catch(e){ toast('Export failed'); } };
   $('#sIm').onclick=()=>$('#importFile').click();
+  const un=$('#sUn'); if(un) un.onclick=()=>{ store.hiddenTracks=[]; save(); settingsSheet(); render(); toast('Hidden songs restored'); };
   $('#sRe').onclick=()=>{ if(confirm('Reset likes, playlists and settings? (Music files stay until folders are removed)')){ try{localStorage.removeItem(LS_KEY);}catch(e){} location.reload(); } };
 }
 

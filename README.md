@@ -1,9 +1,9 @@
 # Ash's Player (offline-first music app)
 
-Simple offline music player with a funky retro-sunset look — cream and cocoa,
-tangerine and marigold, sticker cards, chart ranks, a spinning-vinyl player
-and an animated brand mark. A **real standalone APK**: app files live
-*inside* the app — opens instantly with **zero internet**.
+Simple offline music player with an aqua glacier look — ice blue, deep teal
+and black, sliding screens, chart ranks, a spinning-vinyl player and an
+animated brand mark. A **real standalone APK**: app files live *inside* the
+app — opens instantly with **zero internet**.
 
 ## What's inside
 - **Home** — greeting, search with results overlay, popular tracks, playlists,
@@ -30,7 +30,8 @@ and an animated brand mark. A **real standalone APK**: app files live
 - Equalizer (applies from next song), sleep timer with volume fade restore,
   favorites, backup export/import
 - Theme follows the system by default (Dark / Light / System) + accent colors
-- Lock-screen + background controls (Android notification)
+- Lock-screen + background controls (Android notification with custom icons
+  and album art, progress bar included)
 - **Fully offline** — everything stays on your device
 
 ## 🖥️ Test on PC
