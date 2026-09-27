@@ -1,0 +1,22 @@
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'com.ashs.medialibrary'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 22
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+}

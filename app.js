@@ -1,5 +1,5 @@
-const APP_VERSION='3.2';
-/* Ash's Player v3 Terra — flat warm Material. v3.2: online song search (iTunes previews) + web lyrics (lyrics.ovh). */
+const APP_VERSION='3.3';
+/* Ash's Player v3 Terra — offline-first. v3.3: Lotus-style MediaStore device scan, crash hardening, bulk-import safe. */
 'use strict';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -35,101 +35,93 @@ let store = (()=>{ try{ const r=localStorage.getItem(LS_KEY); if(r){ const d=def
 function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
 
 /* ---------- library ---------- */
-let localTracks = [], cache = [];
+let localTracks = [], deviceTracks = [], cache = [];
 function hashHue(name){ let h=0; const s=String(name||'?'); for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))%360; } return h; }
 function rebuild(){
-  // demos disappear once the user adds their own music
-  const base = localTracks.length ? [] : DEMO.map(d=>({...d}));
-  cache = [...base, ...localTracks];
+  // demos disappear once the user has any real music (device scan or manual)
+  const base = (localTracks.length||deviceTracks.length) ? [] : DEMO.map(d=>({...d}));
+  cache = [...localTracks, ...deviceTracks, ...base];
   cache.forEach(t=>{
     const c=store.customTitles[t.id]; if(c){ t.title=c.title||t.title; t.artist=c.artist||t.artist; }
     const m=store.localMeta[t.id];
     if(m?.duration) t.duration = m.duration;
-    if(m?.cover && !t.coverUrl) t.coverUrl = m.cover;
     if(t.hue==null) t.hue = hashHue(t.title+t.artist);
   });
 }
-let onlineTracks = []; // session-only web results (iTunes previews), never persisted
-const getT = (id)=>cache.find(t=>t.id===id)||onlineTracks.find(t=>t.id===id);
+/* ---------- device library (Lotus-style: MediaStore auto-scan, no manual import) ---------- */
+function deviceSrc(uri){
+  try{ const C=window.Capacitor; if(C&&C.convertFileSrc) return C.convertFileSrc(uri); }catch(e){}
+  return uri;
+}
+function cleanName(s, fb){ s=String(s||'').trim(); if(!s||/^<unknown>$/i.test(s)) return fb; return s; }
+async function scanDevice(opts){
+  opts=opts||{};
+  if(!isNative()) return 0;
+  let ML=null; try{ ML=window.Capacitor.Plugins.MediaLibrary; }catch(e){}
+  if(!ML||!ML.listAudio){ if(!opts.silent) toast('Device scan needs the new app build'); return 0; }
+  let r;
+  try{ r=await ML.listAudio({limit:3000}); }
+  catch(e){
+    if(pickCancelled(e)) return 0;
+    if(!opts.silent) toast('Allow music access in Android Settings → Apps → Permissions');
+    return 0;
+  }
+  const arr=(r&&r.tracks)||[];
+  const seen=new Set(); deviceTracks=[];
+  for(const x of arr){
+    try{
+      const mid=String(x.mid||''); if(!mid||seen.has(mid)) continue; seen.add(mid);
+      const dur=Math.max(0, Math.round(+x.duration||0));
+      deviceTracks.push({
+        id:'dev_'+mid, title:cleanName(x.title||x.name, 'Unknown'),
+        artist:cleanName(x.artist, 'Unknown artist'), album:cleanName(x.album, ''),
+        folder:x.folder||'Device Music', src:deviceSrc(x.uri||''), uri:x.uri||'',
+        source:'device', duration:dur, fileName:x.name||'', hue:hashHue((x.title||'')+(x.artist||''))
+      });
+    }catch(e){}
+  }
+  // rebuild persisted device folders (stable ids), keep manual ones untouched
+  const groups={};
+  deviceTracks.forEach(t=>{ const g=t.folder||'Device Music'; (groups[g]=groups[g]||[]).push(t.id); });
+  const hidden=store.hiddenDeviceFolders||[];
+  store.folders=store.folders.filter(f=>f.kind!=='device');
+  Object.keys(groups).sort().forEach(g=>{
+    if(hidden.includes(g)) return;
+    store.folders.push({id:'df_'+hashHue(g)+'_'+g.length+'_'+(g.charCodeAt(0)||0), name:g, trackIds:groups[g], kind:'device'});
+  });
+  save(); rebuild();
+  if(!opts.silent){
+    toast(deviceTracks.length?deviceTracks.length+' songs found on device':'No music found on device');
+    segTo('folders'); tab('library'); render();
+  }
+  return deviceTracks.length;
+}
+const getT = (id)=>cache.find(t=>t.id===id);
 const all = ()=>cache;
 
-/* ---------- online catalog (free public APIs, no keys) ----------
-   iTunes Search: 30s previews + artwork, CORS open.
-   Skipped from public-apis list on purpose: Audius search sends no CORS
-   headers (browsers can't query it), Deezer/Spotify need OAuth. */
-let searchMode = (store.prefs&&store.prefs.searchMode)||'lib';
-let lastOnlineKey = '', onlineAbort = null, onlineDeb = null;
-function itunesArt(u, px){ try{ return String(u||'').replace('100x100', px+'x'+px); }catch(e){ return u; } }
-function scheduleOnlineSearch(q){
-  clearTimeout(onlineDeb);
-  onlineDeb = setTimeout(()=>doOnlineSearch(q), 450);
-}
-async function doOnlineSearch(q){
-  const key = q;
-  if(onlineAbort){ try{onlineAbort.abort();}catch(e){} }
-  onlineAbort = new AbortController();
-  const spin = $('#onlineSpin'); if(spin) spin.classList.remove('hidden');
+/* ---------- crash reporter (surfaces hidden errors instead of silent death) ---------- */
+let lastAppError = '', _lastErrToast = 0;
+function reportError(msg){
   try{
-    if(!navigator.onLine){ paintOnline([], 'You are offline — connect to search online.'); return; }
-    const r = await fetch('https://itunes.apple.com/search?term='+encodeURIComponent(q)+'&media=music&entity=song&limit=20', {signal:onlineAbort.signal});
-    if(!r.ok) throw new Error('http '+r.status);
-    const d = await r.json();
-    if(key !== lastOnlineKey) return; // stale
-    onlineTracks = (d.results||[]).filter(x=>x.previewUrl).slice(0,20).map(x=>({
-      id:'it_'+x.trackId, title:x.trackName||'Unknown', artist:x.artistName||'Unknown',
-      album:x.collectionName||'', src:x.previewUrl, source:'online', duration:0,
-      fileName:'', hue:hashHue((x.trackName||'')+(x.artistName||'')),
-      coverUrl:itunesArt(x.artworkUrl100, 300)
-    }));
-    paintOnline(onlineTracks, onlineTracks.length?'':'No matches — try another spelling.');
-  }catch(e){ if(e&&e.name==='AbortError') return; paintOnline([], 'Search failed — check connection and retry.'); }
-  finally{ if(spin) spin.classList.add('hidden'); }
+    lastAppError = String(msg||'error').slice(0, 300);
+    const now = Date.now();
+    if(now - _lastErrToast > 8000){ _lastErrToast = now; toast('Hiccup: '+lastAppError.slice(0, 90)); }
+  }catch(e){}
 }
-function paintOnline(list, empty){
-  const el = $('#onlineList'); if(!el) return;
-  el.innerHTML = '';
-  if(!list.length){ el.innerHTML = `<p class="muted center">${esc(empty||'Nothing here yet')}</p>`; return; }
-  list.forEach(t=>el.appendChild(onlineRow(t)));
-}
-function onlineRow(t){
-  const d = document.createElement('div'); d.className = 'track'+(t.id===currentId?' playing':'');
-  d.innerHTML = `${artHTML(t,'t-art')}<div class="t-meta"><b>${esc(t.title)}</b><span>${esc(t.artist)}<span class="src-badge">30s · Online</span></span></div>${t.id===currentId&&!audio.paused?'<span class="eqbars"><i></i><i></i><i></i></span>':''}<button class="t-menu" aria-label="More">${ICONS.dots}</button>`;
-  d.onclick = ()=>playTrack(t.id, {open:true});
-  d.querySelector('.t-menu').onclick = (e)=>{ e.stopPropagation(); onlineMenu(t.id); };
-  return d;
-}
-function onlineMenu(id){
-  const t = onlineTracks.find(x=>x.id===id); if(!t) return;
-  sheet(`<h2>${esc(t.title)}</h2><p class="muted">${esc(t.artist)} · 30s preview</p>
-  <button class="opt" id="oPlay">Play now</button>
-  <button class="opt" id="oNext">Play next</button>
-  <button class="opt" id="oQueue">Add to queue</button>
-  <button class="opt" id="oSave">Save offline</button>
-  <button class="opt" id="oX">Close</button>`);
-  $('#oX').onclick = closeSheet;
-  $('#oPlay').onclick = ()=>{ closeSheet(); playTrack(id, {open:true}); };
-  $('#oNext').onclick = ()=>{ queue.unshift(id); closeSheet(); render(); toast('Plays next'); };
-  $('#oQueue').onclick = ()=>{ queue.push(id); closeSheet(); render(); toast('Added to queue'); };
-  $('#oSave').onclick = ()=>{ closeSheet(); saveOnline(id); };
-}
-async function saveOnline(id){
-  const t = onlineTracks.find(x=>x.id===id); if(!t) return;
-  toast('Downloading preview…');
-  try{
-    const r = await fetch(t.src);
-    if(!r.ok) throw new Error('http '+r.status);
-    const b = await r.blob();
-    if(!(b.type||'').startsWith('audio') && !/\.(m4a|mp3|aac)$/i.test(t.src)) throw new Error('bad type');
-    const safe = (t.artist+' - '+t.title).replace(/[\\/:*?"<>|]/g, '').slice(0,100) || 'preview';
-    await handleFiles([new File([b], safe+'.m4a', {type:b.type||'audio/mp4'})], 'Online');
-  }catch(e){ toast('Could not save — server blocked download'); }
-}
-async function fetchLyricWeb(artist, title){
-  const r = await fetch('https://api.lyrics.ovh/v1/'+encodeURIComponent(artist||'')+'/'+encodeURIComponent(title||''));
-  if(!r.ok) throw new Error('http '+r.status);
-  const d = await r.json();
-  if(!d.lyrics) throw new Error('empty');
-  return d.lyrics;
+window.addEventListener('error', e=>{ reportError((e&&(e.message||e.error&&e.error.message))||'error'); });
+window.addEventListener('unhandledrejection', e=>{ reportError((e.reason&&(e.reason.message||e.reason))||'promise'); });
+
+/* ---------- list virtualization (large libraries: paint 120 rows, not 700+) ---------- */
+let listLimit = 120, lastListKey = '';
+function paintMore(el, list, empty){
+  paint(el, list.slice(0, listLimit), empty);
+  if(list.length > listLimit){
+    const b = document.createElement('button');
+    b.className = 'btn tonal sm'; b.style.width = '100%'; b.style.marginTop = '8px';
+    b.textContent = 'Show more ('+(list.length-listLimit)+' left)';
+    b.onclick = ()=>{ listLimit += 200; render(); };
+    el.appendChild(b);
+  }
 }
 
 /* ---------- IndexedDB ---------- */
@@ -160,15 +152,18 @@ function applyVolume(){ const v=Math.min(100,Math.max(0,store.volumes.vol??100))
 applyVolume();
 audio.playbackRate = store.prefs.speed || 1;
 let actx=null, eqNodes=[], analyser=null, graphOK=false, seeking=false;
+function isPublicHttp(u){ return /^https?:/i.test(u||'') && !/localhost|127\.0\.0\.1/i.test(u||''); }
 function setSrcSafe(t){
-  // Blob/local files must NOT use CORS; remote https can use CORS for EQ fidelity.
-  const isBlob = /^blob:/i.test(t.src||'');
+  // Blob/local/proxied files must NOT use CORS (the load fails without ACAO
+  // headers); public https remotes can use CORS for EQ fidelity.
   try{
-    if(isBlob){ audio.removeAttribute('crossOrigin'); audio.crossOrigin=null; }
-    else if(/^https?:/i.test(t.src||'')){ audio.crossOrigin='anonymous'; }
-    else { audio.removeAttribute('crossOrigin'); }
+    const s = t.src||'';
+    const noCors = /^(blob|content):/i.test(s) || /localhost|127\.0\.0\.1|_capacitor_/i.test(s);
+    if(noCors){ try{audio.removeAttribute('crossOrigin');}catch(e){} try{audio.crossOrigin=null;}catch(e){} }
+    else if(/^https?:/i.test(s)){ audio.crossOrigin='anonymous'; }
+    else { try{audio.removeAttribute('crossOrigin');}catch(e){} }
   }catch(e){}
-  if(audio.getAttribute('src')!==t.src) audio.src=t.src;
+  try{ if(audio.getAttribute('src')!==t.src) audio.src=t.src; }catch(e){ reportError('audio src'); }
 }
 function ensureGraph(){
   if(actx){ if(actx.state==='suspended') actx.resume().catch(()=>{}); return graphOK; }
@@ -226,7 +221,8 @@ const ICONS={
 
 /* ---------- playback ---------- */
 function playTrack(id, opts){
-  const t=getT(id); if(!t) return;
+  try{
+  const t=getT(id); if(!t){ toast('Song not found'); return; }
   opts=opts||{};
   ensureGraph(); ensureNotifPerm();
   // Leaving radio/library context: a manual pick leaves radio mix unless it came from radio.
@@ -249,9 +245,12 @@ function playTrack(id, opts){
   // If src changed, let the element settle a tick so seek/duration are correct.
   if(audio.getAttribute('src')!==t.src || audio.src!==t.src){ setSrcSafe(t); setTimeout(doPlay,30); }
   else doPlay();
+  }catch(e){ reportError('play: '+(e&&e.message||e)); toast('Could not play this file'); }
 }
-function toggle(){ if(!currentId){ const f=all()[0]; if(f) return playTrack(f.id,{keepRadio:true}); return toast('Add music first'); }
-  ensureGraph(); if(audio.paused) audio.play().catch(()=>toast('Could not play')); else audio.pause(); }
+function toggle(){ try{
+  if(!currentId){ const f=all()[0]; if(f) return playTrack(f.id,{keepRadio:true}); return toast('Add music first'); }
+  ensureGraph(); if(audio.paused) audio.play().catch(()=>toast('Could not play')); else audio.pause();
+  }catch(e){ reportError('toggle: '+(e&&e.message||e)); } }
 function next(auto=false){
   if(queue.length){ const id=queue.shift(); render(); return playTrack(id,{keepRadio:true, fromRadio:store.radio}); }
   const list=all(); if(!list.length) return;
@@ -277,13 +276,13 @@ audio.addEventListener('timeupdate',()=>{
 });
 audio.addEventListener('loadedmetadata',()=>{ const t=getT(currentId); if(!t||!audio.duration||!isFinite(audio.duration)) return;
   if(t.source==='local'){ const prev=store.localMeta[t.id]||{}; prev.duration=Math.round(audio.duration); store.localMeta[t.id]=prev; save(); }
-  else if(t.source==='online'){ t.duration=Math.round(audio.duration); const el=$('#onlineList'); if(el&&searchMode==='online') paintOnline(onlineTracks, ''); } });
+  else if(t.source==='device' && !t.duration){ t.duration=Math.round(audio.duration); } });
 audio.addEventListener('error',()=>{ const t=getT(currentId); if(t&&/^https?:/i.test(t.src||'')&&audio.crossOrigin){ try{ audio.removeAttribute('crossorigin'); audio.crossOrigin=null; audio.src=t.src; audio.play().catch(()=>{}); }catch(e){} } });
 audio.addEventListener('ended',()=>{ if(store.prefs.repeat==='one'){ audio.currentTime=0; audio.play().catch(()=>{}); return; }
   if(store.prefs.autoplay||store.radio||queue.length) next(true); });
 audio.addEventListener('play',render); audio.addEventListener('pause',render);
 function mediaSession(){ if(!('mediaSession' in navigator)) return; const t=getT(currentId); if(!t) return;
-  try{ const art=(t.coverUrl&&/^(https?:|data:)/.test(t.coverUrl))?[{src:t.coverUrl,sizes:'160x160'}]:[];
+  try{ const art=(t.coverUrl&&(isPublicHttp(t.coverUrl)||/^data:/.test(t.coverUrl||'')))?[{src:t.coverUrl,sizes:'160x160'}]:[];
     navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:t.album||"Ash's Player",artwork:art});
     navigator.mediaSession.setActionHandler('play',()=>audio.play().catch(()=>{})); navigator.mediaSession.setActionHandler('pause',()=>audio.pause());
     navigator.mediaSession.setActionHandler('previoustrack',prev); navigator.mediaSession.setActionHandler('nexttrack',()=>next());
@@ -320,12 +319,9 @@ function render(){
   rebuild();
   applyTheme();
   const si=$('#searchInput'); const q=((si&&si.value)||'').toLowerCase().trim();
-  // online search mode toggle + debounced web fetch (fetch paints directly, not via render)
-  const smr=$('#searchModeRow'); if(smr) smr.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.mode===searchMode));
-  const wantOnline = searchMode==='online' && q.length>=2;
-  const ob=$('#onlineBox'); if(ob) ob.classList.toggle('hidden', !wantOnline);
-  if(wantOnline){ if(q!==lastOnlineKey){ lastOnlineKey=q; scheduleOnlineSearch(q); } }
-  else { lastOnlineKey=''; if(onlineAbort){ try{onlineAbort.abort();}catch(e){} onlineAbort=null; } clearTimeout(onlineDeb); }
+  // virtualization window resets when the list identity changes
+  const _lk=q+'|'+store.prefs.songSort+'|'+store.prefs.newSort+'|'+all().length;
+  if(_lk!==lastListKey){ lastListKey=_lk; listLimit=120; }
   const plays=id=>store.playCounts[id]||0;
   const popular=all().slice().sort((a,b)=>plays(b.id)-plays(a.id)).slice(0,8);
   // header stats + hero
@@ -367,9 +363,9 @@ function render(){
       b.onclick=()=>{ store.prefs.newSort=v; save(); render(); }; ns.appendChild(b); }); }
   const nlEl=$('#newList'); if(nlEl){ const nl=searchFilter(all()).slice().sort((a,b)=> store.prefs.newSort==='old'
       ? (store.addedAt[a.id]||0)-(store.addedAt[b.id]||0) : (store.addedAt[b.id]||0)-(store.addedAt[a.id]||0));
-    paint(nlEl, nl, 'Nothing here yet — add music to get started'); }
+    paintMore(nlEl, nl, 'Nothing here yet — add music to get started'); }
   // library
-  const libSub=$('#libSub'); if(libSub) libSub.textContent=`${all().length} songs · ${localTracks.length} on this device`;
+  const libSub=$('#libSub'); if(libSub) libSub.textContent=`${all().length} songs · ${localTracks.length+deviceTracks.length} on this device`;
   const sr=$('#songSortRow'); if(sr){ sr.innerHTML='';
     sr.style.display=libSeg==='songs'?'':'none';
     [['az','A – Z'],['za','Z – A']].forEach(([v,l])=>{
@@ -378,7 +374,7 @@ function render(){
       b.onclick=()=>{ store.prefs.songSort=v; save(); render(); }; sr.appendChild(b); }); }
   const slEl=$('#libSongs'); if(slEl){ const sl=searchFilter(all()).slice().sort((a,b)=> store.prefs.songSort==='za'
       ? b.title.localeCompare(a.title) : a.title.localeCompare(b.title));
-    paint(slEl, sl, 'No songs — tap + to add your music'); }
+    paintMore(slEl, sl, 'No songs — tap + to add your music'); }
   const lp=$('#libPlaylists'); if(lp){ lp.innerHTML='';
     if(!store.playlists.length) lp.innerHTML='<p class="muted center">No playlists yet — tap New Playlist</p>';
     store.playlists.forEach(pl=>lp.appendChild(plRow(pl))); }
@@ -390,7 +386,7 @@ function render(){
       const d=document.createElement('div'); d.className='track';
       d.innerHTML=`<div class="t-art folder" style="${artStyle({hue:hashHue(f.name)})};display:flex;align-items:center;justify-content:center">${ICONS.folder}</div><div class="t-meta"><b>${esc(f.name)}</b><span>${ts.length} songs${tot?' · '+fmt(tot):''}</span></div><button class="t-menu" aria-label="Open">${ICONS.chevR}</button>`;
       d.onclick=()=>openFolder(f.id); lf.appendChild(d); }); }
-  const ll=$('#libLiked'); if(ll) paint(ll, all().filter(t=>store.likes.includes(t.id)), 'Nothing liked yet — tap the star on any song');
+  const ll=$('#libLiked'); if(ll) paintMore(ll, all().filter(t=>store.likes.includes(t.id)), 'Nothing liked yet — tap the star on any song');
   // radio
   const rt=getT(currentId);
   const rTi=$('#radioTitle'); if(rTi) rTi.textContent=rt?rt.title:'Nothing playing';
@@ -515,7 +511,7 @@ function syncNotif(){
       try{ MC.addListener&&MC.addListener('controlsNotification',function(info){ mcHandle(info&&(info.message||info)); }); }catch(e){}
       try{ document.addEventListener('controlsNotification',function(ev){ mcHandle(ev&&(ev.message||'')); }); }catch(e){}
     }
-    const cover=(t.coverUrl&&/^https?:/.test(t.coverUrl))?t.coverUrl:'';
+    const cover=(t.coverUrl&&isPublicHttp(t.coverUrl))?t.coverUrl:'';
     if(!trackChanged){ mcUpdatePlaying(MC, playing); return; }
     try{ const r=MC.create({ track:t.title, artist:t.artist, album:t.album||"Ash's Player", cover:cover,
       isPlaying:playing, dismissable:false, hasPrev:true, hasNext:true, hasClose:true,
@@ -575,11 +571,8 @@ function plPicker(id){
 function newPlaylist(){ sheet(`<h2>New playlist</h2><input type="text" id="npN" placeholder="Name it..."/><button class="opt" id="npS">Create</button>`);
   $('#npS').onclick=()=>{ const n=$('#npN').value.trim()||'My Mix'; store.playlists.push({id:'pl_'+Date.now(),name:n,trackIds:[]}); save(); closeSheet(); render(); toast('Playlist created'); }; }
 function lyrEditor(id){ const t=getT(id); if(!t) return;
-  sheet(`<h2>Lyrics — ${esc(t.title)}</h2><textarea id="lyT" placeholder="Paste lyrics...">${esc(store.lyrics[id]||'')}</textarea><button class="opt" id="lyW">Fetch from web (lyrics.ovh)</button><button class="opt" id="lyS">Save lyrics</button>`);
-  $('#lyS').onclick=()=>{ store.lyrics[id]=$('#lyT').value; save(); closeSheet(); render(); toast('Lyrics saved'); };
-  $('#lyW').onclick=async()=>{ const ta=$('#lyT'); toast('Fetching…');
-    try{ ta.value=await fetchLyricWeb(t.artist, t.title); toast('Lyrics found — hit Save'); }
-    catch(e){ toast(!navigator.onLine?'You are offline':'No lyrics found for this song'); } }; }
+  sheet(`<h2>Lyrics — ${esc(t.title)}</h2><textarea id="lyT" placeholder="Paste lyrics...">${esc(store.lyrics[id]||'')}</textarea><button class="opt" id="lyS">Save lyrics</button>`);
+  $('#lyS').onclick=()=>{ store.lyrics[id]=$('#lyT').value; save(); closeSheet(); render(); toast('Lyrics saved'); }; }
 function eqSheet(){
   sheet(`<h2>Equalizer</h2><label class="switch"><input type="checkbox" id="eqE" ${store.eq.enabled?'checked':''}/> Enable EQ</label>
   <p class="muted" style="font-size:12.5px">EQ applies from the next song you play (the audio graph is built on play to avoid silent-playback bugs).</p>
@@ -614,7 +607,8 @@ async function settingsSheet(){
   <h3>Notifications</h3><label class="switch"><input type="checkbox" id="sNotif" ${store.prefs.notif?'checked':''}/> Lock-screen + background controls</label><p class="muted" id="diagLine" style="font-size:13px">Checking…</p><p class="muted" style="font-size:12.5px">Android 13+: allow Notifications when asked, or the player cannot appear on the lock screen.</p>
   <label class="switch"><input type="checkbox" id="sAu" ${store.prefs.autoplay?'checked':''}/> Autoplay next song</label>
   <h3>Library</h3><button class="opt" id="sEx">Export backup</button><button class="opt" id="sIm">Import backup</button><button class="opt danger" id="sRe">Reset everything</button>
-  <p class="muted">Ash's Player v${APP_VERSION} · offline ready · Material edition</p><button class="opt" id="sX">Close</button>`);
+  <h3>Diagnostics</h3><p class="muted" id="diagErr" style="font-size:13px">Last error: none</p><p class="muted" id="diagLib" style="font-size:13px"></p>
+  <p class="muted">Ash's Player v${APP_VERSION} · offline only · Lotus-style device library</p><button class="opt" id="sX">Close</button>`);
   $('#sX').onclick=closeSheet;
   $$('#sheetBox [data-th]').forEach(b=>b.onclick=()=>{ store.prefs.theme=b.dataset.th; save(); settingsSheet(); render(); });
   $$('#sheetBox [data-ac]').forEach(b=>b.onclick=()=>{ store.prefs.accent=b.dataset.ac; save(); settingsSheet(); render(); });
@@ -627,7 +621,9 @@ async function settingsSheet(){
     const hasMC=!!(C&&C.Plugins&&(C.Plugins.CapacitorMusicControls||C.Plugins.MusicControls));
     let perm='n/a (browser)';
     if(native&&C.Plugins.LocalNotifications){ try{ const s=await C.Plugins.LocalNotifications.checkPermissions(); perm=s.display||JSON.stringify(s); }catch(e){ perm='check failed'; } }
-    const dl=$('#diagLine'); if(dl) dl.textContent='App: '+(native?'native':'browser')+' · controls: '+(hasMC?'found':'MISSING')+' · permission: '+perm;
+    const dl=$('#diagLine'); if(dl) dl.textContent='App: '+(native?'native':'browser')+' · controls: '+(hasMC?'found':'MISSING')+' · device scan: '+(canDeviceScan()?'ready':'n/a')+' · permission: '+perm;
+    const de=$('#diagErr'); if(de) de.textContent='Last error: '+(lastAppError||'none');
+    const dlib=$('#diagLib'); if(dlib) dlib.textContent=`Songs: ${all().length} (device ${deviceTracks.length} · files ${localTracks.length}) · folders ${store.folders.length} · playlists ${store.playlists.length}`;
   }catch(e){}
   $('#sAu').onchange=e=>{ store.prefs.autoplay=e.target.checked; save(); };
   $('#sEx').onclick=()=>{ try{ const b=new Blob([JSON.stringify({store,at:new Date().toISOString()},null,2)],{type:'application/json'});
@@ -658,15 +654,22 @@ function openFolder(fid){ const f=store.folders.find(x=>x.id===fid); if(!f) retu
   const el=$('#listSongs'); el.innerHTML='';
   if(!ts.length) el.innerHTML='<p class="muted center">Empty folder</p>';
   ts.forEach(t=>el.appendChild(trackRow(t)));
-  const del=document.createElement('button'); del.className='neon-btn ghost'; del.textContent='Remove folder + songs';
-  del.onclick=async()=>{ if(!confirm('Remove "'+f.name+'" and its '+ts.length+' songs from the library?')) return;
-    for(const tid of f.trackIds){ await idbDel(tid);
-      store.likes=store.likes.filter(x=>x!==tid);
-      store.playlists.forEach(p=>p.trackIds=p.trackIds.filter(x=>x!==tid)); }
-    store.folders=store.folders.filter(x=>x.id!==fid);
-    if(currentId&&f.trackIds.includes(currentId)){ audio.pause(); currentId=null; store.currentId=null; }
-    await loadLocal(); save(); $('#listOverlay').classList.add('hidden'); render(); toast('Folder removed'); };
-  el.appendChild(del);
+  // Device-scan folders are your real files — the app must not offer to delete them.
+  if(ts.some(t=>t.source==='local')){
+    const del=document.createElement('button'); del.className='neon-btn ghost'; del.textContent='Remove folder + songs';
+    del.onclick=async()=>{ if(!confirm('Remove "'+f.name+'" and its '+ts.length+' songs from the library?')) return;
+      for(const tid of f.trackIds){ await idbDel(tid);
+        store.likes=store.likes.filter(x=>x!==tid);
+        store.playlists.forEach(p=>p.trackIds=p.trackIds.filter(x=>x!==tid)); }
+      store.folders=store.folders.filter(x=>x.id!==fid);
+      if(currentId&&f.trackIds.includes(currentId)){ try{audio.pause();}catch(e){} currentId=null; store.currentId=null; }
+      await loadLocal(); save(); $('#listOverlay').classList.add('hidden'); render(); toast('Folder removed'); };
+    el.appendChild(del);
+  } else if(f.kind==='device'){
+    const p=document.createElement('p'); p.className='muted center'; p.style.fontSize='12.5px';
+    p.textContent='Scanned from your device — files stay untouched.';
+    el.appendChild(p);
+  }
   $('#listOverlay').classList.remove('hidden'); }
 
 /* pick songs into a playlist */
@@ -709,17 +712,49 @@ function shrinkCover(dataUrl, max){ return new Promise(res=>{
     }catch(e){ res(dataUrl); } }; img.onerror=()=>res(dataUrl); img.src=dataUrl;
     setTimeout(()=>res(dataUrl),4000);
   }catch(e){ res(dataUrl); } }); }
+async function idbGet(id){ const db=await idb(); return new Promise((res,rej)=>{ const q=db.transaction('files','readonly').objectStore('files').get(id); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
+/* ---------- deferred duration probe (bulk imports skip per-file Audio elements;
+   real durations trickle in afterwards, or on first play) ---------- */
+let durQueue = [], durRunning = false;
+function durLater(id){ if(durQueue.length < 2500 && !durQueue.includes(id)) durQueue.push(id); kickDur(); }
+function kickDur(){
+  if(durRunning) return; durRunning = true;
+  const step = async ()=>{
+    try{
+      const id = durQueue.shift();
+      if(id){
+        try{
+          const rec = await idbGet(id);
+          if(rec && rec.blob){
+            const d = await probeDur(rec.blob).catch(()=>0);
+            if(d > 0){
+              const prev = store.localMeta[id]||{}; prev.duration = d; store.localMeta[id] = prev;
+              const t = getT(id); if(t) t.duration = d;
+              if(durQueue.length % 10 === 0) save();
+              if(durQueue.length % 25 === 0) render();
+            }
+          }
+        }catch(e){}
+        setTimeout(step, 400); return;
+      }
+    }catch(e){}
+    durRunning = false; try{ save(); render(); }catch(_){}
+  };
+  setTimeout(step, 400);
+}
 async function handleFiles(files, folderHint, opts){
   const norm=[...files].map(f=> f instanceof Blob
     ? { name:f.name||'song', blob:f, path:f.webkitRelativePath||'', size:f.size||0 }
     : { name:f.name||'song', blob:f.blob||f, path:f.path||'', size:f.size||(f.blob&&f.blob.size)||0 });
-  const arr=norm.filter(f=>f.blob&&((f.blob.type||'').startsWith('audio')||/\.(mp3|wav|ogg|m4a|flac|webm|opus)$/i.test(f.name||'')));
+  let arr=norm.filter(f=>f.blob&&((f.blob.type||'').startsWith('audio')||/\.(mp3|wav|ogg|m4a|flac|webm|opus)$/i.test(f.name||'')));
   if(!arr.length) return toast('No audio files found');
+  if(arr.length>2500){ toast('Large pick — importing first 2500'); arr=arr.slice(0,2500); }
   let known=new Set();
   try{ (await idbAll()).forEach(r=>known.add((r.folder||'')+'|'+r.name+'|'+(r.size||0))); }catch(e){}
   // Group by each file's own folder so multi-folder picks stay tidy.
   const groups=new Map();
   arr.forEach(f=>{ const g=folderHint||folderOf(f)||'My Music'; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push(f); });
+  segTo('folders'); tab('library'); // show progress live while importing
   let imported=0, skipped=0, touched=[];
   for(const [folderName, list] of groups){
     let folder=store.folders.find(x=>x.name===folderName);
@@ -731,33 +766,37 @@ async function handleFiles(files, folderHint, opts){
         const id='local_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
         let title=(f.name||'song').replace(/\.[^.]+$/,''), artist=folderName, cover=undefined;
         try{ const tg=await readTags(f.blob); if(tg.title) title=tg.title; if(tg.artist) artist=tg.artist; if(tg.coverUrl) cover=await shrinkCover(tg.coverUrl,160); }catch(e){}
-        const dur=await probeDur(f.blob).catch(()=>0);
-        await idbPut({id,name:f.name,title,artist,blob:f.blob,folder:folderName,duration:dur,size:f.size||0,cover:cover||''});
-        if(cover){ store.localMeta[id]={duration:dur,cover}; } else if(dur){ store.localMeta[id]={duration:dur}; }
+        await idbPut({id,name:f.name,title,artist,blob:f.blob,folder:folderName,duration:0,size:f.size||0,cover:cover||''});
         store.addedAt[id]=Date.now(); folder.trackIds.push(id); known.add(key); imported++;
+        durLater(id); // duration fills in quietly afterwards
         if(!touched.includes(folderName)) touched.push(folderName);
       }catch(e){ console.warn('skipped file', f && f.name, e); skipped++; }
-      await new Promise(r=>setTimeout(r,15));
-      if(imported%10===0) render();
+      await new Promise(r=>setTimeout(r,0));
+      if(imported%25===0){ save(); render(); }
     }
   }
   save(); await loadLocal(); save(); render(); segTo('folders'); tab('library');
   if(!(opts&&opts.quiet)){
-    if(imported) toast(imported+' song'+(imported===1?'':'s')+' added'+(touched.length===1?' to '+touched[0]:'')+(skipped?' · '+skipped+' skipped':''));
+    if(imported) toast(imported+' song'+(imported===1?'':'s')+' added'+(touched.length===1?' to '+touched[0]:'')+(skipped?' · '+skipped+' skipped':'')+' · times fill in shortly');
     else toast(skipped?'Already in library — nothing new':'No audio files found');
   } }
-function addMenu(){ const nat=isNative();
+function canDeviceScan(){ try{ const C=window.Capacitor; return isNative()&&!!(C.Plugins.MediaLibrary&&C.Plugins.MediaLibrary.listAudio); }catch(e){ return false; } }
+function addMenu(){ const nat=isNative(), scan=canDeviceScan();
   sheet(`<h2>Add music</h2><p class="muted">Stays on your device · plays offline forever</p>
+  ${scan?'<button class="opt" id="aScan">Scan device music (auto — fastest)</button>':''}
   <button class="opt" id="aAuto">${nat?'Pick songs from a folder (then Select all)':'Scan a whole folder at once'}</button>
   <button class="opt" id="aFolder">${nat?'Pick from another folder':'Choose songs from a folder (then Select-all)'}</button>
   <button class="opt" id="aSongs">Choose songs (pick many at once)</button>
-  <p class="muted" style="font-size:12.5px">${nat
-    ? 'Android has no direct folder-scan: the system picker opens, you navigate into a folder and tap Select-all (or tick songs). Everything imports together. Repeat per folder.'
+  <p class="muted" style="font-size:12.5px">${scan
+    ? 'Scan finds every song on the phone at once — no ticking files one by one. Manual pick still works for anything the scan misses.'
+    : nat
+    ? 'The system picker opens, you navigate into a folder and tap Select-all (or tick songs). Everything imports together. Repeat per folder.'
     : 'Open a folder, long-press one song (or use Select-all) to grab everything at once. Google Drive sends one song at a time — download songs to your device first. You can pick repeatedly; everything lands in the same folder.'}</p>
   <button class="opt" id="aX">Close</button>`);
   $('#aX').onclick=closeSheet;
+  const sc=$('#aScan'); if(sc) sc.onclick=()=>{ closeSheet(); scanDevice({}); };
   $('#aAuto').onclick=()=>{ closeSheet(); pickWatchFolder(); };
-  $('#aFolder').onclick=()=>{ closeSheet(); nativeOr(()=>$('#folderInput').click(),{folderHint:'Device Music'}); };
+  $('#aFolder').onclick=()=>{ closeSheet(); nativeOr(()=>$(isNative()?'#fileInput':'#folderInput').click(),{folderHint:'Device Music'}); };
   $('#aSongs').onclick=()=>{ closeSheet(); nativeOr(()=>$('#fileInput').click()); }; }
 /* ---------- scan a whole folder at once (web: File System Access · native: multi-select) ---------- */
 async function pickWatchFolder(){
@@ -861,8 +900,6 @@ function bind(){
   const sap=$('#seeAllPopular'); if(sap) sap.onclick=()=>{ tab('library'); segTo('songs'); };
   const spl=$('#seeAllPl'); if(spl) spl.onclick=()=>{ tab('library'); segTo('playlists'); };
   const sinput=$('#searchInput'); if(sinput) sinput.addEventListener('input',e=>{ const c=$('#clearSearch'); if(c) c.classList.toggle('hidden',!e.target.value); render(); });
-  $$('#searchModeRow button').forEach(b=>b.onclick=()=>{ searchMode=b.dataset.mode; store.prefs.searchMode=searchMode; save(); render();
-    if(searchMode==='online'&&!navigator.onLine) toast('You are offline — online search needs internet'); });
   const cbtn=$('#clearSearch'); if(cbtn) cbtn.onclick=()=>{ $('#searchInput').value=''; cbtn.classList.add('hidden'); render(); };
   const add=()=>addMenu();
   const ab2=$('#addMusicBtn2'); if(ab2) ab2.onclick=add;
@@ -935,10 +972,15 @@ function segTo(s){ libSeg=s; $$('.seg button').forEach(b=>b.classList.toggle('ac
   // installs never created the notification. Enable once on native; the
   // user's later choice sticks.
   try{ if(isNative()&&store.prefs.notifMigrated!==true){ store.prefs.notif=true; store.prefs.notifMigrated=true; save(); } }catch(e){}
+  // v3.3 migration: covers used to duplicate into localStorage (quota blowout
+  // on big libraries — settings stopped saving). Covers live in IndexedDB now.
+  try{ let scrub=false; Object.keys(store.localMeta||{}).forEach(k=>{ if(store.localMeta[k]&&store.localMeta[k].cover){ delete store.localMeta[k].cover; scrub=true; } }); if(scrub) save(); }catch(e){}
   rebuild(); bind(); applyVolume(); render();
   try{ if(window.matchMedia) matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{ if(store.prefs.theme==='system') render(); }); }catch(e){}
   ensureNotifPerm();
-  await loadLocal(); render();
+  await loadLocal();
+  await scanDevice({silent:true}); // Lotus-style: whole device library, no tapping files
+  render();
   if(currentId&&getT(currentId)){ try{ setSrcSafe(getT(currentId)); }catch(e){ try{audio.src=getT(currentId).src;}catch(_){} } audio.playbackRate=store.prefs.speed||1; applyVolume(); render(); }
   try{ document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&actx&&actx.state==='suspended'&&!audio.paused) actx.resume().catch(()=>{}); }); }catch(e){}
   console.log('%cAsh\'s Player ready — '+all().length+' tracks','color:#2dd4bf;font-weight:bold');

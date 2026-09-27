@@ -1,0 +1,16 @@
+{
+  "name": "ashs-media-library",
+  "version": "1.0.0",
+  "description": "List on-device audio via Android MediaStore (local plugin, no network)",
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "files": ["dist/", "android/"],
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "author": "",
+  "license": "MIT"
+}
