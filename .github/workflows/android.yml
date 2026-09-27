@@ -12,6 +12,7 @@ on:
       - 'app.js'
       - 'capacitor.config.json'
       - 'package.json'
+      - 'plugins/**'
       - '.github/workflows/android.yml'
 
 jobs:
@@ -30,17 +31,25 @@ jobs:
           java-version: 17
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          if [ ! -f plugins/media-library/package.json ]; then
+            echo "WARNING: plugins/media-library missing from repo — building without device-scan plugin"
+            node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));delete (p.dependencies||{})['ashs-media-library'];fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
+          else
+            echo "Local media plugin present"
+          fi
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
       - name: Stage web assets (keeps node_modules OUT of the APK)
         run: |
           mkdir -p www
           cp index.html styles.css app.js manifest.json sw.js icon.svg icon-192.png icon-512.png www/
+          cp .nojekyll www/ 2>/dev/null || true
           cp -r .well-known www/ 2>/dev/null || true
 
       - name: Add + sync Android platform
         run: |
-          npx cap add android
+          if [ ! -d android ]; then npx cap add android; fi
           npx cap sync android
 
       - name: Build debug APK
