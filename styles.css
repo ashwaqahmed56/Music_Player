@@ -126,6 +126,9 @@ button{font-family:inherit; touch-action:manipulation}
 .seg::-webkit-scrollbar{display:none}
 .seg button{flex-shrink:0; border:1px solid var(--line); background:var(--surface); color:var(--muted); font-weight:600; font-size:13.5px; padding:9px 16px; border-radius:999px; cursor:pointer}
 .seg button.active{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.seg.sm{margin:0 0 4px} .seg.sm button{padding:8px 14px; font-size:13px}
+.src-badge{font-size:10.5px; font-weight:700; color:var(--acc); border:1px solid var(--line); border-radius:6px; padding:1px 6px; margin-left:6px; white-space:nowrap}
+.fine{font-size:12px}
 .accent-row button{display:inline-flex; align-items:center; gap:7px}
 .accent-row button i{width:12px; height:12px; border-radius:50%; background:var(--dot,#d97a4a); display:inline-block}
 

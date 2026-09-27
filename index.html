@@ -30,6 +30,16 @@
     <section id="screen-home" class="screen active">
       <div class="page-head"><div><p class="kicker" id="greetTitle">Good evening</p><h1>Find your vibe</h1></div></div>
       <label class="search-field"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="searchInput" placeholder="Search songs, artists..." autocomplete="off" /><button id="clearSearch" class="hidden" aria-label="Clear">✕</button></label>
+      <div class="seg sm" id="searchModeRow" role="tablist" aria-label="Search in">
+        <button data-mode="lib" class="active">My music</button>
+        <button data-mode="online">Online</button>
+      </div>
+      <div id="onlineBox" class="hidden">
+        <div class="row-head"><h2>Online songs</h2><span class="pill">iTunes · 30s previews</span></div>
+        <div id="onlineSpin" class="hidden"><p class="muted center">Searching…</p></div>
+        <div id="onlineList" class="v-list"></div>
+        <p class="muted center fine">Previews need internet · tap ⋮ to save one offline</p>
+      </div>
 
       <div class="hero" id="heroCard">
         <div class="hero-art" id="heroArt">♪</div>

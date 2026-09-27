@@ -1,5 +1,5 @@
-const APP_VERSION='3.1';
-/* Ash's Player v3 Terra — flat warm Material. v3.1: Android folder multi-pick + lock-screen controls fix. */
+const APP_VERSION='3.2';
+/* Ash's Player v3 Terra — flat warm Material. v3.2: online song search (iTunes previews) + web lyrics (lyrics.ovh). */
 'use strict';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -49,8 +49,88 @@ function rebuild(){
     if(t.hue==null) t.hue = hashHue(t.title+t.artist);
   });
 }
-const getT = (id)=>cache.find(t=>t.id===id);
+let onlineTracks = []; // session-only web results (iTunes previews), never persisted
+const getT = (id)=>cache.find(t=>t.id===id)||onlineTracks.find(t=>t.id===id);
 const all = ()=>cache;
+
+/* ---------- online catalog (free public APIs, no keys) ----------
+   iTunes Search: 30s previews + artwork, CORS open.
+   Skipped from public-apis list on purpose: Audius search sends no CORS
+   headers (browsers can't query it), Deezer/Spotify need OAuth. */
+let searchMode = (store.prefs&&store.prefs.searchMode)||'lib';
+let lastOnlineKey = '', onlineAbort = null, onlineDeb = null;
+function itunesArt(u, px){ try{ return String(u||'').replace('100x100', px+'x'+px); }catch(e){ return u; } }
+function scheduleOnlineSearch(q){
+  clearTimeout(onlineDeb);
+  onlineDeb = setTimeout(()=>doOnlineSearch(q), 450);
+}
+async function doOnlineSearch(q){
+  const key = q;
+  if(onlineAbort){ try{onlineAbort.abort();}catch(e){} }
+  onlineAbort = new AbortController();
+  const spin = $('#onlineSpin'); if(spin) spin.classList.remove('hidden');
+  try{
+    if(!navigator.onLine){ paintOnline([], 'You are offline — connect to search online.'); return; }
+    const r = await fetch('https://itunes.apple.com/search?term='+encodeURIComponent(q)+'&media=music&entity=song&limit=20', {signal:onlineAbort.signal});
+    if(!r.ok) throw new Error('http '+r.status);
+    const d = await r.json();
+    if(key !== lastOnlineKey) return; // stale
+    onlineTracks = (d.results||[]).filter(x=>x.previewUrl).slice(0,20).map(x=>({
+      id:'it_'+x.trackId, title:x.trackName||'Unknown', artist:x.artistName||'Unknown',
+      album:x.collectionName||'', src:x.previewUrl, source:'online', duration:0,
+      fileName:'', hue:hashHue((x.trackName||'')+(x.artistName||'')),
+      coverUrl:itunesArt(x.artworkUrl100, 300)
+    }));
+    paintOnline(onlineTracks, onlineTracks.length?'':'No matches — try another spelling.');
+  }catch(e){ if(e&&e.name==='AbortError') return; paintOnline([], 'Search failed — check connection and retry.'); }
+  finally{ if(spin) spin.classList.add('hidden'); }
+}
+function paintOnline(list, empty){
+  const el = $('#onlineList'); if(!el) return;
+  el.innerHTML = '';
+  if(!list.length){ el.innerHTML = `<p class="muted center">${esc(empty||'Nothing here yet')}</p>`; return; }
+  list.forEach(t=>el.appendChild(onlineRow(t)));
+}
+function onlineRow(t){
+  const d = document.createElement('div'); d.className = 'track'+(t.id===currentId?' playing':'');
+  d.innerHTML = `${artHTML(t,'t-art')}<div class="t-meta"><b>${esc(t.title)}</b><span>${esc(t.artist)}<span class="src-badge">30s · Online</span></span></div>${t.id===currentId&&!audio.paused?'<span class="eqbars"><i></i><i></i><i></i></span>':''}<button class="t-menu" aria-label="More">${ICONS.dots}</button>`;
+  d.onclick = ()=>playTrack(t.id, {open:true});
+  d.querySelector('.t-menu').onclick = (e)=>{ e.stopPropagation(); onlineMenu(t.id); };
+  return d;
+}
+function onlineMenu(id){
+  const t = onlineTracks.find(x=>x.id===id); if(!t) return;
+  sheet(`<h2>${esc(t.title)}</h2><p class="muted">${esc(t.artist)} · 30s preview</p>
+  <button class="opt" id="oPlay">Play now</button>
+  <button class="opt" id="oNext">Play next</button>
+  <button class="opt" id="oQueue">Add to queue</button>
+  <button class="opt" id="oSave">Save offline</button>
+  <button class="opt" id="oX">Close</button>`);
+  $('#oX').onclick = closeSheet;
+  $('#oPlay').onclick = ()=>{ closeSheet(); playTrack(id, {open:true}); };
+  $('#oNext').onclick = ()=>{ queue.unshift(id); closeSheet(); render(); toast('Plays next'); };
+  $('#oQueue').onclick = ()=>{ queue.push(id); closeSheet(); render(); toast('Added to queue'); };
+  $('#oSave').onclick = ()=>{ closeSheet(); saveOnline(id); };
+}
+async function saveOnline(id){
+  const t = onlineTracks.find(x=>x.id===id); if(!t) return;
+  toast('Downloading preview…');
+  try{
+    const r = await fetch(t.src);
+    if(!r.ok) throw new Error('http '+r.status);
+    const b = await r.blob();
+    if(!(b.type||'').startsWith('audio') && !/\.(m4a|mp3|aac)$/i.test(t.src)) throw new Error('bad type');
+    const safe = (t.artist+' - '+t.title).replace(/[\\/:*?"<>|]/g, '').slice(0,100) || 'preview';
+    await handleFiles([new File([b], safe+'.m4a', {type:b.type||'audio/mp4'})], 'Online');
+  }catch(e){ toast('Could not save — server blocked download'); }
+}
+async function fetchLyricWeb(artist, title){
+  const r = await fetch('https://api.lyrics.ovh/v1/'+encodeURIComponent(artist||'')+'/'+encodeURIComponent(title||''));
+  if(!r.ok) throw new Error('http '+r.status);
+  const d = await r.json();
+  if(!d.lyrics) throw new Error('empty');
+  return d.lyrics;
+}
 
 /* ---------- IndexedDB ---------- */
 function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('nova_music_db',2);
@@ -195,8 +275,9 @@ audio.addEventListener('timeupdate',()=>{
   const cc=$('#plCur'); if(cc) cc.textContent=fmt(c); const dd=$('#plDur'); if(dd) dd.textContent=fmt(d);
   const mp=$('#miniProg'); if(mp) mp.style.width=(d?c/d*100:0)+'%';
 });
-audio.addEventListener('loadedmetadata',()=>{ const t=getT(currentId);
-  if(t?.source==='local'&&audio.duration&&isFinite(audio.duration)){ const prev=store.localMeta[t.id]||{}; prev.duration=Math.round(audio.duration); store.localMeta[t.id]=prev; save(); } });
+audio.addEventListener('loadedmetadata',()=>{ const t=getT(currentId); if(!t||!audio.duration||!isFinite(audio.duration)) return;
+  if(t.source==='local'){ const prev=store.localMeta[t.id]||{}; prev.duration=Math.round(audio.duration); store.localMeta[t.id]=prev; save(); }
+  else if(t.source==='online'){ t.duration=Math.round(audio.duration); const el=$('#onlineList'); if(el&&searchMode==='online') paintOnline(onlineTracks, ''); } });
 audio.addEventListener('error',()=>{ const t=getT(currentId); if(t&&/^https?:/i.test(t.src||'')&&audio.crossOrigin){ try{ audio.removeAttribute('crossorigin'); audio.crossOrigin=null; audio.src=t.src; audio.play().catch(()=>{}); }catch(e){} } });
 audio.addEventListener('ended',()=>{ if(store.prefs.repeat==='one'){ audio.currentTime=0; audio.play().catch(()=>{}); return; }
   if(store.prefs.autoplay||store.radio||queue.length) next(true); });
@@ -239,6 +320,12 @@ function render(){
   rebuild();
   applyTheme();
   const si=$('#searchInput'); const q=((si&&si.value)||'').toLowerCase().trim();
+  // online search mode toggle + debounced web fetch (fetch paints directly, not via render)
+  const smr=$('#searchModeRow'); if(smr) smr.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.mode===searchMode));
+  const wantOnline = searchMode==='online' && q.length>=2;
+  const ob=$('#onlineBox'); if(ob) ob.classList.toggle('hidden', !wantOnline);
+  if(wantOnline){ if(q!==lastOnlineKey){ lastOnlineKey=q; scheduleOnlineSearch(q); } }
+  else { lastOnlineKey=''; if(onlineAbort){ try{onlineAbort.abort();}catch(e){} onlineAbort=null; } clearTimeout(onlineDeb); }
   const plays=id=>store.playCounts[id]||0;
   const popular=all().slice().sort((a,b)=>plays(b.id)-plays(a.id)).slice(0,8);
   // header stats + hero
@@ -487,9 +574,12 @@ function plPicker(id){
 }
 function newPlaylist(){ sheet(`<h2>New playlist</h2><input type="text" id="npN" placeholder="Name it..."/><button class="opt" id="npS">Create</button>`);
   $('#npS').onclick=()=>{ const n=$('#npN').value.trim()||'My Mix'; store.playlists.push({id:'pl_'+Date.now(),name:n,trackIds:[]}); save(); closeSheet(); render(); toast('Playlist created'); }; }
-function lyrEditor(id){ const t=getT(id);
-  sheet(`<h2>Lyrics — ${esc(t.title)}</h2><textarea id="lyT" placeholder="Paste lyrics...">${esc(store.lyrics[id]||'')}</textarea><button class="opt" id="lyS">Save lyrics</button>`);
-  $('#lyS').onclick=()=>{ store.lyrics[id]=$('#lyT').value; save(); closeSheet(); render(); toast('Lyrics saved'); }; }
+function lyrEditor(id){ const t=getT(id); if(!t) return;
+  sheet(`<h2>Lyrics — ${esc(t.title)}</h2><textarea id="lyT" placeholder="Paste lyrics...">${esc(store.lyrics[id]||'')}</textarea><button class="opt" id="lyW">Fetch from web (lyrics.ovh)</button><button class="opt" id="lyS">Save lyrics</button>`);
+  $('#lyS').onclick=()=>{ store.lyrics[id]=$('#lyT').value; save(); closeSheet(); render(); toast('Lyrics saved'); };
+  $('#lyW').onclick=async()=>{ const ta=$('#lyT'); toast('Fetching…');
+    try{ ta.value=await fetchLyricWeb(t.artist, t.title); toast('Lyrics found — hit Save'); }
+    catch(e){ toast(!navigator.onLine?'You are offline':'No lyrics found for this song'); } }; }
 function eqSheet(){
   sheet(`<h2>Equalizer</h2><label class="switch"><input type="checkbox" id="eqE" ${store.eq.enabled?'checked':''}/> Enable EQ</label>
   <p class="muted" style="font-size:12.5px">EQ applies from the next song you play (the audio graph is built on play to avoid silent-playback bugs).</p>
@@ -771,6 +861,8 @@ function bind(){
   const sap=$('#seeAllPopular'); if(sap) sap.onclick=()=>{ tab('library'); segTo('songs'); };
   const spl=$('#seeAllPl'); if(spl) spl.onclick=()=>{ tab('library'); segTo('playlists'); };
   const sinput=$('#searchInput'); if(sinput) sinput.addEventListener('input',e=>{ const c=$('#clearSearch'); if(c) c.classList.toggle('hidden',!e.target.value); render(); });
+  $$('#searchModeRow button').forEach(b=>b.onclick=()=>{ searchMode=b.dataset.mode; store.prefs.searchMode=searchMode; save(); render();
+    if(searchMode==='online'&&!navigator.onLine) toast('You are offline — online search needs internet'); });
   const cbtn=$('#clearSearch'); if(cbtn) cbtn.onclick=()=>{ $('#searchInput').value=''; cbtn.classList.add('hidden'); render(); };
   const add=()=>addMenu();
   const ab2=$('#addMusicBtn2'); if(ab2) ab2.onclick=add;

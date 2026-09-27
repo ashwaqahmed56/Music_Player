@@ -17,12 +17,24 @@ the app — opens instantly with **zero internet**.
 - Equalizer (applies from next song, so it can never mute playback), lyrics,
   sleep timer with volume fade restore, favorites, backup export/import
 - Theme: Dark / Light / System + 6 accent colors (Oto-style)
+- **Online song search** (needs internet) — Home search → Online tab searches the
+  iTunes catalog, plays 30s previews in-app, saves previews offline via ⋮ menu
+- **Web lyrics** — open Lyrics on any song → Fetch from web (lyrics.ovh, free)
 - **Fully offline** — your songs play without internet (demo songs need internet;
   everything you add works offline)
 - Everything stays on your device (IndexedDB + localStorage)
 
 ## 🖥️ Test on PC
 Double-click `start-pc.bat` → `http://localhost:8000` (phone-size column is normal).
+
+## Android notes
+- **Adding a whole folder:** Android has no direct folder-scan API, so Add →
+  first option opens the system picker — navigate into your music folder and tap
+  **Select all** (or tick songs). Imports group by folder automatically.
+- **Lock-screen / background controls:** on by default (Settings → Notifications).
+  On Android 13+ tap **Allow** when it asks for notification permission, otherwise
+  nothing can appear on the lock screen. If controls show MISSING in Settings,
+  rebuild + reinstall the APK so the plugin syncs.
 
 ## 📲 Get the standalone APK (free, no Android Studio)
 1. Upload **all** files to GitHub (including the `.github` folder — see note below).
