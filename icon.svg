@@ -1,10 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#0b100c"/>
-  <circle cx="256" cy="256" r="152" fill="#131a14" stroke="#dce6c8" stroke-opacity=".2" stroke-width="3"/>
-  <circle cx="256" cy="256" r="128" fill="none" stroke="#ffffff" stroke-opacity=".07" stroke-width="2"/>
-  <circle cx="256" cy="256" r="104" fill="none" stroke="#ffffff" stroke-opacity=".07" stroke-width="2"/>
-  <circle cx="256" cy="256" r="80" fill="none" stroke="#ffffff" stroke-opacity=".07" stroke-width="2"/>
-  <circle cx="256" cy="256" r="56" fill="#e5a83b"/>
-  <circle cx="256" cy="256" r="14" fill="#0b100c"/>
-  <ellipse cx="180" cy="120" rx="110" ry="48" fill="#ffffff" opacity=".07"/>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a241c"/>
+      <stop offset="1" stop-color="#0b100c"/>
+    </linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26332a"/>
+      <stop offset="1" stop-color="#10160f"/>
+    </linearGradient>
+    <radialGradient id="lbl" cx="0.5" cy="0.38" r="0.75">
+      <stop offset="0" stop-color="#ffd97a"/>
+      <stop offset="1" stop-color="#d98f1f"/>
+    </radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+    <clipPath id="disc"><circle cx="256" cy="248" r="148"/></clipPath>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#tile)"/>
+  <ellipse cx="256" cy="418" rx="150" ry="26" fill="#000000" opacity=".55" filter="url(#soft)"/>
+  <ellipse cx="256" cy="262" rx="150" ry="146" fill="#050705"/>
+  <circle cx="256" cy="248" r="148" fill="url(#face)" stroke="#dce6c8" stroke-opacity=".22" stroke-width="3"/>
+  <circle cx="256" cy="248" r="126" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2"/>
+  <circle cx="256" cy="248" r="104" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2"/>
+  <circle cx="256" cy="248" r="82" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2"/>
+  <circle cx="256" cy="248" r="56" fill="url(#lbl)"/>
+  <circle cx="256" cy="248" r="56" fill="none" stroke="#7a4d0d" stroke-opacity=".6" stroke-width="2"/>
+  <circle cx="256" cy="248" r="14" fill="#0b100c" stroke="#ffe9c4" stroke-opacity=".7" stroke-width="2"/>
+  <g clip-path="url(#disc)">
+    <rect x="120" y="40" width="70" height="420" rx="35" fill="#ffffff" opacity=".10" transform="rotate(18 256 248)"/>
+  </g>
+  <ellipse cx="180" cy="110" rx="120" ry="50" fill="#ffffff" opacity=".06"/>
 </svg>

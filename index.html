@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Ash's Player</title>
 <meta name="description" content="Ash's Player - warm, simple offline music player" />
-<meta name="theme-color" content="#0b100c" />
+<meta name="theme-color" content="#1e120b" />
 <meta name="color-scheme" content="dark light" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
@@ -21,7 +21,7 @@
 
 <div class="phone">
   <header class="appbar">
-    <div class="brand"><span class="brand-mark">A</span><div class="brand-txt"><b>Ash's Player</b><span id="statLine">Your music</span></div></div>
+    <div class="brand"><span class="brand-disc" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#3a2317" stroke="#ff6b35" stroke-width="2.5"/><circle class="bd-spin" cx="24" cy="24" r="20" fill="none" stroke="#ffc53d" stroke-width="2" stroke-dasharray="5 9" opacity=".9"/><g class="bd-bars" stroke="#ffc53d" stroke-width="2.6" stroke-linecap="round"><line x1="18" y1="27" x2="18" y2="21"/><line x1="24" y1="27" x2="24" y2="18"/><line x1="30" y1="27" x2="30" y2="22"/></g><circle cx="24" cy="24" r="3.2" fill="#fff3e2"/></svg></span><div class="brand-txt"><b>Ash's Player</b><span id="statLine">Your music</span></div></div>
     <div class="row-btns"><button class="icon-btn themeToggle" title="Theme" aria-label="Theme"></button><button id="homeSettings" class="icon-btn" title="Settings" aria-label="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
   </header>
 
@@ -33,7 +33,7 @@
 
       <div class="hero" id="heroCard">
         <div class="hero-art" id="heroArt">♪</div>
-        <div class="hero-mid"><span class="kicker" id="heroKick">Ready</span><b id="heroTitle">Add your music</b><span id="heroSub">Plays offline, stays on device</span>
+        <div class="hero-mid"><span class="kicker" id="heroKick">Spotlight · most played</span><b id="heroTitle">Add your music</b><span id="heroSub">Plays offline, stays on device</span>
           <div class="hero-prog"><span id="heroProg"></span></div></div>
         <button class="hero-play" id="heroPlay" aria-label="Play"></button>
         <button class="hero-next" id="heroNext" aria-label="Next"></button>

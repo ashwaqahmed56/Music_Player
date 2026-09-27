@@ -1,4 +1,4 @@
-const APP_VERSION='3.7';
+const APP_VERSION='3.8.1';
 'use strict';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -339,7 +339,7 @@ function applyTheme(){
   r.dataset.theme=th;
   r.style.setProperty('--acc',acc.a);
   try{ r.style.setProperty('--acc-soft',acc.a+'2e'); }catch(e){}
-  const mc=document.querySelector('meta[name=theme-color]'); if(mc) mc.content=th==='light'?'#f1ebdc':'#0b100c';
+  const mc=document.querySelector('meta[name=theme-color]'); if(mc) mc.content=th==='light'?'#fff3e0':'#1e120b';
   $$('.themeToggle').forEach(b=>b.innerHTML=th==='light'?ICONS.moon:ICONS.sun);
 }
 
@@ -351,7 +351,7 @@ function render(){
   const plays=id=>store.playCounts[id]||0;
   const popular=all().slice().sort((a,b)=>plays(b.id)-plays(a.id)).slice(0,8);
   const sl2=$('#statLine'); if(sl2) sl2.textContent=all().length?`${all().length} songs · ${store.playlists.length} playlists`:'Your music';
-  paintHero('hero'); paintHero('ns'); paintHero('lb');
+  paintSpot('hero'); paintHero('ns'); paintHero('lb');
   const mPill=$('#mixPill'); if(mPill) mPill.textContent=store.radio?'Mix on':'Shuffle';
   const pr=$('#popularRow'); if(pr){ pr.innerHTML='';
     if(!all().length) pr.innerHTML='<p class="muted">No music yet — go to Songs → Add</p>';
@@ -476,16 +476,16 @@ function setMarquee(el, text){
     el.classList.toggle('paused', audio.paused);
   });
 }
-function paintHero(p){
+function paintHeroCard(p,t,kick){
   const card=document.getElementById(p+'Card'); if(!card) return;
-  const t=getT(currentId)||all()[0];
   card.classList.toggle('hidden',!t);
   if(!t) return;
+  try{ card.dataset.tid=t.id; }catch(e){}
   const byId=s=>document.getElementById(p+s);
   const a=byId('Art');
   if(a){ if(t.coverUrl){ a.innerHTML=`<img src="${t.coverUrl}" alt=""/>`; a.style.cssText=''; }
     else { a.textContent=(t.title||'♪').trim().charAt(0).toUpperCase()||'♪'; a.style.cssText=artStyle(t); } }
-  const k=byId('Kick'); if(k) k.textContent=(currentId===t.id&&!audio.paused)?'Now playing':(currentId===t.id?'Paused':'Up next');
+  const k=byId('Kick'); if(k) k.textContent=kick||((currentId===t.id&&!audio.paused)?'Now playing':(currentId===t.id?'Paused':'Up next'));
   const ti=byId('Title'); if(ti) ti.textContent=t.title;
   const su=byId('Sub'); if(su) su.textContent=t.artist;
   const pl=byId('Play'); if(pl){ pl.innerHTML=(currentId===t.id&&!audio.paused)?ICONS.pause:ICONS.play;
@@ -493,9 +493,18 @@ function paintHero(p){
   const nx=byId('Next'); if(nx){ nx.innerHTML=ICONS.next;
     nx.onclick=e=>{ e.stopPropagation(); if(currentId===t.id) next(); else playTrack(t.id,{open:true}); }; }
 }
+function paintHero(p){ paintHeroCard(p, getT(currentId)||all()[0]); }
+function mostPlayed(){ let best=null,bn=0; try{ all().forEach(t=>{ const n=store.playCounts[t.id]||0; if(n>bn){ bn=n; best=t; } }); }catch(e){} return best||all()[0]||null; }
+function paintSpot(p){ paintHeroCard(p, mostPlayed(), 'Spotlight · most played'); }
 function tickHeroProg(){
-  const d=audio.duration||getT(currentId)?.duration||0, c=audio.currentTime||0, w=(d?c/d*100:0)+'%';
-  ['heroProg','nsProg','lbProg'].forEach(id=>{ const e=document.getElementById(id); if(e) e.style.width=w; });
+  [['heroProg','heroCard'],['nsProg','nsCard'],['lbProg','lbCard']].forEach(([pid,cid])=>{
+    const e=document.getElementById(pid); if(!e) return;
+    const card=document.getElementById(cid); const t=card&&card.dataset.tid?getT(card.dataset.tid):null;
+    const live=t&&currentId===t.id;
+    const d=live?(audio.duration||t.duration||0):(t?t.duration||0:0);
+    const c=live?(audio.currentTime||0):0;
+    e.style.width=(d?c/d*100:0)+'%';
+  });
 }
 function plRow(pl){
   const d=document.createElement('div'); d.className='track';
@@ -863,7 +872,7 @@ async function loadCoverCache(){ try{ const v=await metaGet('coverCache'); if(v&
 function coversLater(){ try{
   if(!coversLoaded) return;
   let n=0;
-  for(const t of all()){ if(n>=400) break;
+  for(const t of all()){ if(n>=600) break;
     if(t.source==='device'&&!t.coverUrl&&!coverCache[t.id]&&!coverQueue.includes(t.id)){ coverQueue.push(t.id); n++; } }
   if(coverQueue.length) kickCovers();
  }catch(e){} }
@@ -889,9 +898,9 @@ function kickCovers(){
                   if(tg.coverUrl){ const small=await shrinkCover(tg.coverUrl,128);
                     if(small){ coverCache[id]=small; const t2=getT(id); if(t2) t2.coverUrl=small;
                       coverDirty++; if(coverDirty%10===0){ try{metaSet('coverCache',coverCache).catch(()=>{});}catch(e){} }
-                      done++; if(done%12===0) render(); } } } } } }
+                      done++; if(done%8===0) render(); } } } } } }
         }catch(e){}
-        setTimeout(step,1500); return;
+        setTimeout(step,900); return;
       }
     }catch(e){}
     coverRunning=false;

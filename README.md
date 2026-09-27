@@ -1,8 +1,8 @@
 # Ash's Player (offline-first music app)
 
-Simple offline music player with a botanical editorial look — deep leaf-green
-ink, marigold amber, parchment light mode, forest-black dark mode, ranked
-charts and a spinning-vinyl player. A **real standalone APK**: app files live
+Simple offline music player with a funky retro-sunset look — cream and cocoa,
+tangerine and marigold, sticker cards, chart ranks, a spinning-vinyl player
+and an animated brand mark. A **real standalone APK**: app files live
 *inside* the app — opens instantly with **zero internet**.
 
 ## What's inside
