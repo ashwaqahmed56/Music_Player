@@ -1,5 +1,5 @@
-const APP_VERSION='3.0';
-/* Ash's Player v3 Terra — flat warm Material. Structure + palette rebuilt, no glow/gradients. */
+const APP_VERSION='3.1';
+/* Ash's Player v3 Terra — flat warm Material. v3.1: Android folder multi-pick + lock-screen controls fix. */
 'use strict';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -27,7 +27,7 @@ const ACCENTS = {
 };
 function defStore(){ return {
   likes:[], playlists:[], folders:[], recents:[], playCounts:{}, addedAt:{}, lyrics:{},
-  volumes:{vol:100}, prefs:{shuffle:false, repeat:'off', speed:1, autoplay:true, theme:'dark', accent:'clay', songSort:'az', newSort:'new', notif:false},
+  volumes:{vol:100}, prefs:{shuffle:false, repeat:'off', speed:1, autoplay:true, theme:'dark', accent:'clay', songSort:'az', newSort:'new', notif:true},
   eq:{enabled:false, gains:[0,0,0,0,0], preset:'Normal'},
   localMeta:{}, customTitles:{}, currentId:null, radio:false
 };}
@@ -202,8 +202,9 @@ audio.addEventListener('ended',()=>{ if(store.prefs.repeat==='one'){ audio.curre
   if(store.prefs.autoplay||store.radio||queue.length) next(true); });
 audio.addEventListener('play',render); audio.addEventListener('pause',render);
 function mediaSession(){ if(!('mediaSession' in navigator)) return; const t=getT(currentId); if(!t) return;
-  try{ navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:t.album||"Ash's Player"});
-    navigator.mediaSession.setActionHandler('play',()=>audio.play()); navigator.mediaSession.setActionHandler('pause',()=>audio.pause());
+  try{ const art=(t.coverUrl&&/^(https?:|data:)/.test(t.coverUrl))?[{src:t.coverUrl,sizes:'160x160'}]:[];
+    navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:t.album||"Ash's Player",artwork:art});
+    navigator.mediaSession.setActionHandler('play',()=>audio.play().catch(()=>{})); navigator.mediaSession.setActionHandler('pause',()=>audio.pause());
     navigator.mediaSession.setActionHandler('previoustrack',prev); navigator.mediaSession.setActionHandler('nexttrack',()=>next());
   }catch(e){} }
 
@@ -383,11 +384,12 @@ function nativeBack(){
   }catch(e){}
 }
 /* ---------- native lock-screen / notification controls ---------- */
-let _notifState='', _mcBound=false, _lastMsg='', _lastMsgT=0;
+let _lastNotifId=null, _lastNotifPlaying=null, _mcBound=false, _lastMsg='', _lastMsgT=0;
 function mcPlugin(){ try{ const C=window.Capacitor;
   if(!(C&&C.isNativePlatform&&C.isNativePlatform())) return null;
   return C.Plugins.CapacitorMusicControls||C.Plugins.MusicControls||null;
  }catch(e){ return null; } }
+function notifReset(){ _lastNotifId=null; _lastNotifPlaying=null; }
 function mcHandle(message){
   if(!message) return;
   const now=Date.now();
@@ -395,31 +397,44 @@ function mcHandle(message){
   _lastMsg=message; _lastMsgT=now;
   if(message==='music-controls-play') audio.play().catch(()=>{});
   else if(message==='music-controls-pause') audio.pause();
+  else if(message==='music-controls-toggle-playing'||message==='music-controls-media-button'){
+    if(audio.paused) audio.play().catch(()=>{}); else audio.pause();
+  }
   else if(message==='music-controls-next') next();
   else if(message==='music-controls-previous') prev();
-  else if(message==='music-controls-destroy'){ try{audio.pause();}catch(e){} _notifState=''; }
+  else if(message==='music-controls-destroy'){ try{audio.pause();}catch(e){} notifReset(); }
+}
+function mcUpdatePlaying(MC, playing){
+  // wako/ingageco lineage takes {isPlaying}; very old impls took a boolean.
+  try{ const r=MC.updateIsPlaying({isPlaying:playing});
+    if(r&&r.catch) r.catch(()=>{ try{ MC.updateIsPlaying(playing); }catch(e){} _lastNotifPlaying=null; });
+  }catch(e){ try{ MC.updateIsPlaying(playing); }catch(_){} _lastNotifPlaying=null; }
 }
 function syncNotif(){
   mediaSession(); // browser / PWA path
   try{
-    const MC=mcPlugin(); if(!MC||!store.prefs.notif) return;
+    const MC=mcPlugin(); if(!MC) return;
+    if(!store.prefs.notif){ // turned off: take a stale notification down
+      if(_lastNotifId!==null){ try{ const r=MC.destroy(); r&&r.catch&&r.catch(()=>{}); }catch(e){} notifReset(); }
+      return;
+    }
     const t=getT(currentId);
-    if(!t){ try{ const r=MC.destroy(); r&&r.catch&&r.catch(()=>{}); }catch(e){} _notifState=''; return; }
-    const playing=!audio.paused, key=t.id+(playing?'1':'0');
-    if(key===_notifState) return;
-    const trackChanged=!_notifState || _notifState.slice(0,-1)!==t.id;
-    _notifState=key;
+    if(!t){ if(_lastNotifId!==null){ try{ const r=MC.destroy(); r&&r.catch&&r.catch(()=>{}); }catch(e){} notifReset(); } return; }
+    const playing=!audio.paused;
+    if(_lastNotifId===t.id && _lastNotifPlaying===playing) return;
+    const trackChanged=_lastNotifId!==t.id;
+    _lastNotifId=t.id; _lastNotifPlaying=playing;
     if(!_mcBound){ _mcBound=true;
       try{ MC.addListener&&MC.addListener('controlsNotification',function(info){ mcHandle(info&&(info.message||info)); }); }catch(e){}
       try{ document.addEventListener('controlsNotification',function(ev){ mcHandle(ev&&(ev.message||'')); }); }catch(e){}
     }
     const cover=(t.coverUrl&&/^https?:/.test(t.coverUrl))?t.coverUrl:'';
-    if(!trackChanged){ try{ const r=MC.updateIsPlaying(playing); r&&r.catch&&r.catch(()=>{}); }catch(e){} return; }
-    try{ const r=MC.create({ track:t.title, artist:t.artist, cover:cover,
-      isPlaying:playing, dismissable:true, hasPrev:true, hasNext:true, hasClose:true,
+    if(!trackChanged){ mcUpdatePlaying(MC, playing); return; }
+    try{ const r=MC.create({ track:t.title, artist:t.artist, album:t.album||"Ash's Player", cover:cover,
+      isPlaying:playing, dismissable:false, hasPrev:true, hasNext:true, hasClose:true,
       ticker:'Now playing "'+t.title+'"' });
-      r&&r.catch&&r.catch(()=>{ _notifState=''; });
-    }catch(e){ _notifState=''; }
+      r&&r.catch&&r.catch(()=>{ notifReset(); });
+    }catch(e){ notifReset(); }
   }catch(e){}
 }
 
@@ -506,7 +521,7 @@ async function settingsSheet(){
   <h3>Sound</h3><div class="eq-row"><label>Volume</label><input type="range" id="sVol" min="0" max="100" value="${store.volumes.vol??100}" aria-label="Volume"/><span>${store.volumes.vol??100}</span></div>
   <div class="eq-row"><label>Speed</label><input type="range" id="sSp" min="0.5" max="2" step="0.05" value="${store.prefs.speed}" aria-label="Speed"/><span>${(+store.prefs.speed).toFixed(2)}x</span></div>
   <div class="chips"><button id="sSpR">Reset speed to 1.00x</button></div>
-  <h3>Notifications</h3><label class="switch"><input type="checkbox" id="sNotif" ${store.prefs.notif?'checked':''}/> Lock-screen controls (restarts on next song)</label><p class="muted" id="diagLine" style="font-size:13px">Checking…</p>
+  <h3>Notifications</h3><label class="switch"><input type="checkbox" id="sNotif" ${store.prefs.notif?'checked':''}/> Lock-screen + background controls</label><p class="muted" id="diagLine" style="font-size:13px">Checking…</p><p class="muted" style="font-size:12.5px">Android 13+: allow Notifications when asked, or the player cannot appear on the lock screen.</p>
   <label class="switch"><input type="checkbox" id="sAu" ${store.prefs.autoplay?'checked':''}/> Autoplay next song</label>
   <h3>Library</h3><button class="opt" id="sEx">Export backup</button><button class="opt" id="sIm">Import backup</button><button class="opt danger" id="sRe">Reset everything</button>
   <p class="muted">Ash's Player v${APP_VERSION} · offline ready · Material edition</p><button class="opt" id="sX">Close</button>`);
@@ -516,7 +531,7 @@ async function settingsSheet(){
   $('#sVol').oninput=e=>{ store.volumes.vol=+e.target.value; e.target.nextElementSibling.textContent=e.target.value; applyVolume(); save(); };
   $('#sSp').oninput=e=>{ store.prefs.speed=+e.target.value; audio.playbackRate=store.prefs.speed; e.target.nextElementSibling.textContent=store.prefs.speed.toFixed(2)+'x'; save(); };
   $('#sSpR').onclick=()=>{ store.prefs.speed=1; audio.playbackRate=1; save(); settingsSheet(); render(); toast('Speed reset to 1x'); };
-  $('#sNotif').onchange=e=>{ store.prefs.notif=e.target.checked; save(); _notifState=''; render(); toast(store.prefs.notif?'Lock-screen controls on':'Lock-screen controls off'); };
+  $('#sNotif').onchange=e=>{ store.prefs.notif=e.target.checked; save(); notifReset(); if(store.prefs.notif) ensureNotifPerm(); render(); toast(store.prefs.notif?'Lock-screen controls on':'Lock-screen controls off'); };
   try{
     const C=window.Capacitor, native=!!(C&&C.isNativePlatform&&C.isNativePlatform());
     const hasMC=!!(C&&C.Plugins&&(C.Plugins.CapacitorMusicControls||C.Plugins.MusicControls));
@@ -583,7 +598,16 @@ function songPicker(pid){
     save(); closeSheet(); openPlaylist(pid); render(); toast(n?n+' song'+(n>1?'s':'')+' added':'Nothing new selected'); };
 }
 /* ---------- files & folders ---------- */
-function folderOf(entry){ const p=entry.path||entry.webkitRelativePath||''; if(p&&p.includes('/')) return p.split('/').filter(Boolean)[0]||''; return ''; }
+function folderOf(entry){ const p=entry.path||entry.webkitRelativePath||''; if(!p) return '';
+  if(p.includes('/')) return p.split('/').filter(Boolean)[0]||'';
+  return p; /* native parent-dir name (no slashes) */ }
+function isNative(){ try{ const C=window.Capacitor; return !!(C&&C.isNativePlatform&&C.isNativePlatform()); }catch(e){ return false; } }
+function pickCancelled(e){ const m=String((e&&(e.message||e.code))||e||'').toLowerCase();
+  return /cancel|dismiss|close|abort|empty|no.*(select|file)/.test(m); }
+function parentNameOf(p){ try{ const s=String(p||''); if(!s||s.indexOf('content:')===0) return '';
+  const parts=s.split('/').filter(Boolean); if(parts.length<2) return '';
+  if(!/\.(mp3|wav|ogg|m4a|flac|webm|opus)$/i.test(parts[parts.length-1])) return '';
+  return parts[parts.length-2]; }catch(e){ return ''; } }
 function shrinkCover(dataUrl, max){ return new Promise(res=>{
   try{
     if(!dataUrl||dataUrl.length<200*1024) return res(dataUrl);
@@ -632,24 +656,32 @@ async function handleFiles(files, folderHint, opts){
     if(imported) toast(imported+' song'+(imported===1?'':'s')+' added'+(touched.length===1?' to '+touched[0]:'')+(skipped?' · '+skipped+' skipped':''));
     else toast(skipped?'Already in library — nothing new':'No audio files found');
   } }
-function addMenu(){ sheet(`<h2>Add music</h2><p class="muted">Stays on your device · plays offline forever</p>
-  ${window.showDirectoryPicker?'<button class="opt" id="aAuto">Scan a whole folder at once</button>':''}
-  <button class="opt" id="aFolder">Choose songs from a folder (then Select-all)</button>
+function addMenu(){ const nat=isNative();
+  sheet(`<h2>Add music</h2><p class="muted">Stays on your device · plays offline forever</p>
+  <button class="opt" id="aAuto">${nat?'Pick songs from a folder (then Select all)':'Scan a whole folder at once'}</button>
+  <button class="opt" id="aFolder">${nat?'Pick from another folder':'Choose songs from a folder (then Select-all)'}</button>
   <button class="opt" id="aSongs">Choose songs (pick many at once)</button>
-  <p class="muted" style="font-size:12.5px">Open a folder, long-press one song (or use Select-all) to grab everything at once. Google Drive sends one song at a time — download songs to your device first. You can pick repeatedly; everything lands in the same folder.</p>
+  <p class="muted" style="font-size:12.5px">${nat
+    ? 'Android has no direct folder-scan: the system picker opens, you navigate into a folder and tap Select-all (or tick songs). Everything imports together. Repeat per folder.'
+    : 'Open a folder, long-press one song (or use Select-all) to grab everything at once. Google Drive sends one song at a time — download songs to your device first. You can pick repeatedly; everything lands in the same folder.'}</p>
   <button class="opt" id="aX">Close</button>`);
   $('#aX').onclick=closeSheet;
-  const au=$('#aAuto'); if(au) au.onclick=()=>{ closeSheet(); pickWatchFolder(); };
-  $('#aFolder').onclick=()=>{ closeSheet(); nativeOr(()=>$('#folderInput').click()); };
+  $('#aAuto').onclick=()=>{ closeSheet(); pickWatchFolder(); };
+  $('#aFolder').onclick=()=>{ closeSheet(); nativeOr(()=>$('#folderInput').click(),{folderHint:'Device Music'}); };
   $('#aSongs').onclick=()=>{ closeSheet(); nativeOr(()=>$('#fileInput').click()); }; }
-/* ---------- scan a whole folder at once ---------- */
+/* ---------- scan a whole folder at once (web: File System Access · native: multi-select) ---------- */
 async function pickWatchFolder(){
+  if(isNative()){ await pickFolderNative(); return; }
   if(!window.showDirectoryPicker){ $('#folderInput').click(); return; }
   try{
     const dir=await window.showDirectoryPicker({mode:'read'});
     toast('Scanning '+dir.name+'…');
     await scanAndImport(dir, dir.name);
   }catch(e){ if(e?.name!=='AbortError') toast('Could not read that folder'); }
+}
+async function pickFolderNative(){
+  toast('Open a folder, then Select all');
+  await nativeOr(()=>{ const f=$('#fileInput'); if(f) f.click(); },{folderHint:'Device Music'});
 }
 async function scanAndImport(dir, folderName){
   const files=[];
@@ -674,37 +706,47 @@ async function scanAndImport(dir, folderName){
   toast(fresh.length+' new song'+(fresh.length>1?'s':'')+' added from '+folderName);
   return fresh.length;
 }
-/* native (Capacitor) file picker: system picker, multi-select, streams from disk */
-async function nativeOr(fallback){
-  try{ const C=window.Capacitor;
+/* native (Capacitor) file picker: system picker, multi-select, streams from disk.
+   NOTE: no `types` (v6 ignores it when limit is set), no `readData` (base64
+   balloons memory and crashes on big audio). Blobs stream via webPath/path. */
+async function nativePickAudio(){
+  try{
+    const C=window.Capacitor;
     const FP=C&&C.isNativePlatform&&C.isNativePlatform()&&(C.Plugins.FilePicker||C.Plugins.CapacitorFilePicker);
-    if(FP&&FP.pickFiles){
-      let r;
-      try{ r=await FP.pickFiles({types:['audio/*'], limit:0, readData:true}); }
-      catch(e1){ try{ r=await FP.pickFiles(); }catch(e2){ throw e2; } }
-      const picked=(r&&r.files)||[];
-      if(!picked.length) return;
-      toast('Importing '+picked.length+' file'+(picked.length>1?'s':'')+'…');
-      const out=[];
-      for(const x of picked){
-        try{
-          let blob=null;
-          if(x.data){ try{ const bin=atob(x.data); const bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-            blob=new Blob([bytes],{type:x.mimeType||'audio/mpeg'}); }catch(e){} }
-          if(!blob&&x.blob) blob=x.blob;
-          if(!blob&&x.webPath){ try{ const resp=await fetch(x.webPath); if(resp.ok) blob=await resp.blob(); }catch(e){} }
-          if(!blob&&x.path&&C.convertFileSrc){ try{ const resp=await fetch(C.convertFileSrc(x.path)); if(resp.ok) blob=await resp.blob(); }catch(e){} }
-          if(!blob) continue;
-          const name=x.name||('song'+(out.length+1)+'.mp3');
-          if(!/\.(mp3|wav|ogg|m4a|flac|webm|opus)$/i.test(name)&&!(blob.type||'').startsWith('audio')) continue;
-          out.push({name:name, blob:blob, path:'', size:blob.size||x.size||0});
-        }catch(e){}
-      }
-      if(out.length){ await handleFiles(out); return; }
-      toast('Could not read those files — try the browser picker'); return;
+    if(!FP||!FP.pickFiles) return null;
+    let r;
+    try{ r=await FP.pickFiles({limit:0}); }
+    catch(e){ if(pickCancelled(e)) return {cancelled:true}; try{ r=await FP.pickFiles(); }catch(e2){ if(pickCancelled(e2)) return {cancelled:true}; throw e2; } }
+    const picked=(r&&r.files)||[];
+    if(!picked.length) return {cancelled:true};
+    const out=[];
+    for(const x of picked){
+      try{
+        let blob=x.blob||null;
+        if(!blob&&x.webPath){ try{ const resp=await fetch(x.webPath); if(resp.ok) blob=await resp.blob(); }catch(e){} }
+        if(!blob&&x.path&&C.convertFileSrc){ try{ const resp=await fetch(C.convertFileSrc(x.path)); if(resp.ok) blob=await resp.blob(); }catch(e){} }
+        if(!blob) continue;
+        const name=x.name||('song'+(out.length+1)+'.mp3');
+        if(!/\.(mp3|wav|ogg|m4a|flac|webm|opus)$/i.test(name)&&!(blob.type||'').startsWith('audio')) continue;
+        out.push({name:name, blob:blob, path:parentNameOf(x.path), size:blob.size||x.size||0});
+      }catch(e){}
     }
-  }catch(e){ console.warn('native pick failed, using browser', e); }
-  fallback(); }
+    return {files:out};
+  }catch(e){ console.warn('native pick failed', e); return null; }
+}
+async function nativeOr(fallback, opts){
+  opts=opts||{};
+  if(!isNative()){ fallback(); return; }
+  const res=await nativePickAudio();
+  if(res&&res.cancelled) return; // backed out of the picker — don't pop another one up
+  if(res&&res.files&&res.files.length){
+    toast('Importing '+res.files.length+' file'+(res.files.length>1?'s':'')+'…');
+    await handleFiles(res.files, opts.folderHint);
+    return;
+  }
+  if(res&&res.files) toast('Could not read those files — trying built-in picker');
+  fallback(); // plugin missing/failed: WebView <input> opens the system picker on Android
+}
 function readTags(f){ return new Promise(res=>{ let done=false; const fin=o=>{ if(!done){done=true; res(o);} };
   if(!window.jsmediatags) return fin({});
   try{ window.jsmediatags.read(f,{onSuccess:t=>{const g=(t&&t.tags)||{};const o={title:g.title,artist:g.artist,album:g.album};
@@ -797,6 +839,10 @@ function segTo(s){ libSeg=s; $$('.seg button').forEach(b=>b.classList.toggle('ac
 /* ---------- boot ---------- */
 (async function(){
   DEMO.forEach((d,i)=>{ if(!store.addedAt[d.id]) store.addedAt[d.id]=Date.now()-(100-i)*60000; });
+  // v3.1 migration: lock-screen controls used to default OFF, so existing
+  // installs never created the notification. Enable once on native; the
+  // user's later choice sticks.
+  try{ if(isNative()&&store.prefs.notifMigrated!==true){ store.prefs.notif=true; store.prefs.notifMigrated=true; save(); } }catch(e){}
   rebuild(); bind(); applyVolume(); render();
   try{ if(window.matchMedia) matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{ if(store.prefs.theme==='system') render(); }); }catch(e){}
   ensureNotifPerm();
