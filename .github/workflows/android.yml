@@ -1,10 +1,5 @@
 name: Build Ash's Player APK (standalone, offline)
 
-# Free cloud build: every push + manual runs compile a real native APK
-# with your app files bundled INSIDE (no website loading, works offline).
-#
-# NOTE: the yt-bgr Android plugin is generated inline below, so this workflow
-# is fully self-contained. You never have to upload plugins/yt-bgr yourself.
 on:
   workflow_dispatch:
   push:
@@ -26,11 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -39,10 +32,8 @@ jobs:
       - name: Install dependencies
         run: |
           if [ ! -f plugins/media-library/package.json ]; then
-            echo "WARNING: plugins/media-library missing from repo — building without device-scan plugin"
+            echo "WARNING: plugins/media-library missing — building without device-scan plugin"
             node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));delete (p.dependencies||{})['ashs-media-library'];fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
-          else
-            echo "Local media plugin present"
           fi
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
@@ -59,50 +50,34 @@ jobs:
           {
             "name": "ashs-yt-bgr",
             "version": "1.0.0",
-            "description": "YouTube background playback: official site in a WebView owned by a mediaPlayback foreground service, with a native MediaSession mirrored from the page player. No API, no stream extraction, no download.",
             "main": "dist/plugin.cjs.js",
             "module": "dist/esm/index.js",
             "types": "dist/esm/index.d.ts",
             "files": ["dist/", "android/"],
             "capacitor": { "android": { "src": "android" } },
-            "author": "",
             "license": "MIT"
           }
           YTBGR_PKG_EOF
 
           cat > plugins/yt-bgr/android/build.gradle <<'YTBGR_GRADLE_EOF'
           apply plugin: 'com.android.library'
-
           android {
               namespace 'com.ashs.ytbgr'
               compileSdk 34
-
-              defaultConfig {
-                  minSdk 22
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
+              defaultConfig { minSdk 22 targetSdk 34 versionCode 1 versionName "1.0" }
               buildTypes {
                   release {
                       minifyEnabled false
                       proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
                   }
               }
-              lintOptions {
-                  abortOnError false
-              }
+              lintOptions { abortOnError false }
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
                   targetCompatibility JavaVersion.VERSION_17
               }
           }
-
-          repositories {
-              google()
-              mavenCentral()
-          }
-
+          repositories { google(); mavenCentral() }
           dependencies {
               implementation fileTree(dir: 'libs', include: ['*.jar'])
               implementation project(':capacitor-android')
@@ -112,9 +87,7 @@ jobs:
           YTBGR_GRADLE_EOF
 
           cat > plugins/yt-bgr/android/proguard-rules.pro <<'YTBGR_PRO_EOF'
-          -keepclassmembers class com.ashs.ytbgr.YtWebViewService$JsBridge {
-              public *;
-          }
+          -keepclassmembers class com.ashs.ytbgr.YtWebViewService$JsBridge { public *; }
           -keepattributes JavascriptInterface
           YTBGR_PRO_EOF
 
@@ -128,7 +101,6 @@ jobs:
             <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
             <application>
-              <!-- stopWithTask="false": swiping from recents must NOT stop playback -->
               <service
                   android:name="com.ashs.ytbgr.YtWebViewService"
                   android:exported="false"
@@ -160,11 +132,9 @@ jobs:
           cat > plugins/yt-bgr/android/src/main/res/layout/activity_yt_player.xml <<'YTBGR_LAY_EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:id="@+id/ytRoot"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
-              android:background="@android:color/black"
-              android:fitsSystemWindows="false">
+              android:background="@android:color/black">
               <FrameLayout
                   android:id="@+id/ytContainer"
                   android:layout_width="match_parent"
@@ -188,134 +158,81 @@ jobs:
           (function () {
             if (window.__ytBgrInstalled) return;
             window.__ytBgrInstalled = true;
-
             var BRIDGE = window.AndroidYt;
-            var video = null;
-            var lastSecond = -1;
-            var navTimer = null;
-            var missingSince = 0;
-            var metaSig = '';
-
-            function send(type, data) {
-              try {
-                if (BRIDGE && BRIDGE.post) BRIDGE.post(JSON.stringify({ type: type, data: data }));
-              } catch (e) {}
-            }
-            function findVideo() {
-              try { return document.querySelector('video'); } catch (e) { return null; }
-            }
+            var video = null, lastSecond = -1, navTimer = null, missingSince = 0, metaSig = '';
+            function send(t, d) { try { if (BRIDGE && BRIDGE.post) BRIDGE.post(JSON.stringify({ type: t, data: d })); } catch (e) {} }
+            function findVideo() { try { return document.querySelector('video'); } catch (e) { return null; } }
             function thumbFor(id) { return id ? 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg' : ''; }
-
             function readMeta() {
               var out = {};
               try {
                 var mp = document.getElementById('movie_player');
                 if (mp && typeof mp.getVideoData === 'function') {
                   var d = mp.getVideoData() || {};
-                  out.title = d.title || '';
-                  out.artist = d.author || '';
-                  out.videoId = d.video_id || '';
+                  out.title = d.title || ''; out.artist = d.author || ''; out.videoId = d.video_id || '';
                   if (d.duration) out.duration = Math.round(Number(d.duration) * 1000);
                   out.artwork = thumbFor(d.video_id);
                 }
               } catch (e) {}
-              if (!out.title) {
-                var h = document.querySelector('h1 yt-formatted-string, h1.title, h1');
-                out.title = (h && h.textContent || document.title || '').trim();
-              }
-              if (!out.artist) {
-                var a = document.querySelector('#owner-name a, ytd-channel-name a, #upload-info a, .ytd-channel-name');
-                out.artist = (a && a.textContent || '').trim();
-              }
+              if (!out.title) { var h = document.querySelector('h1 yt-formatted-string, h1.title, h1'); out.title = (h && h.textContent || document.title || '').trim(); }
+              if (!out.artist) { var a = document.querySelector('#owner-name a, ytd-channel-name a, #upload-info a, .ytd-channel-name'); out.artist = (a && a.textContent || '').trim(); }
               if (!out.artwork) {
                 var og = document.querySelector('meta[property="og:image"]');
-                if (og && og.content) out.artwork = og.content;
-                else if (out.videoId) out.artwork = thumbFor(out.videoId);
+                if (og && og.content) out.artwork = og.content; else if (out.videoId) out.artwork = thumbFor(out.videoId);
               }
-              if (!out.duration && video && isFinite(video.duration)) {
-                out.duration = Math.round(video.duration * 1000);
-              }
+              if (!out.duration && video && isFinite(video.duration)) out.duration = Math.round(video.duration * 1000);
               if (!out.title) return null;
               return out;
             }
-
             function pushMeta(force) {
-              var m = readMeta();
-              if (!m) return;
+              var m = readMeta(); if (!m) return;
               var sig = (m.title || '') + '|' + (m.artist || '') + '|' + (m.videoId || '');
               if (!force && sig === metaSig) return;
-              metaSig = sig;
-              send('meta', m);
+              metaSig = sig; send('meta', m);
             }
-
             function readState() {
               var v = video;
               if (!v) return { state: 'idle', position: 0, duration: 0 };
               var s = 'paused';
               if (v.ended) s = 'ended';
               else if (!v.paused) s = (v.seeking || v.readyState < 3) ? 'buffering' : 'playing';
-              return {
-                state: s,
-                position: Math.floor((v.currentTime || 0) * 1000),
-                duration: Math.floor((v.duration || 0) * 1000)
-              };
+              return { state: s, position: Math.floor((v.currentTime || 0) * 1000), duration: Math.floor((v.duration || 0) * 1000) };
             }
             function pushState() { send('state', readState()); }
-
             function bind() {
               var v = findVideo();
               if (!v) return false;
               if (v.__ytBgrBound) { video = v; return true; }
-              v.__ytBgrBound = true;
-              video = v;
-              ['play', 'pause', 'ended', 'waiting', 'playing', 'loadedmetadata',
-               'seeked', 'ratechange', 'stalled', 'canplay'].forEach(function (ev) {
-                v.addEventListener(ev, function () {
-                  pushState();
-                  pushMeta(ev === 'loadedmetadata' || ev === 'playing');
-                });
+              v.__ytBgrBound = true; video = v;
+              ['play','pause','ended','waiting','playing','loadedmetadata','seeked','ratechange','stalled','canplay'].forEach(function (ev) {
+                v.addEventListener(ev, function () { pushState(); pushMeta(ev === 'loadedmetadata' || ev === 'playing'); });
               });
-              v.addEventListener('timeupdate', function () {
-                var s = Math.floor(v.currentTime || 0);
-                if (s !== lastSecond) { lastSecond = s; pushState(); }
-              });
+              v.addEventListener('timeupdate', function () { var s = Math.floor(v.currentTime || 0); if (s !== lastSecond) { lastSecond = s; pushState(); } });
               pushMeta(true);
               return true;
             }
-
             function clearDialogs() {
               try {
-                var nodes = document.querySelectorAll(
-                  '.ytp-dialog-button, .ytp-confirm-dialog-rollup button, ' +
-                  'tp-yt-paper-dialog #button, ytd-consent-bump-v2-lightbox button, ' +
-                  'form[action*="consent"] button'
-                );
+                var nodes = document.querySelectorAll('.ytp-dialog-button, .ytp-confirm-dialog-rollup button, tp-yt-paper-dialog #button, ytd-consent-bump-v2-lightbox button, form[action*="consent"] button');
                 for (var i = 0; i < nodes.length; i++) {
                   var b = nodes[i];
                   if (b.disabled) continue;
                   var t = (b.textContent || '').trim();
                   if (!t) continue;
                   if (/^(no thanks|decline|reject|only necessary)$/i.test(t)) continue;
-                  if (/continue|ok|got it|accept|agree|i agree|allow all|rejected|understand/i.test(t)) {
-                    try { b.click(); } catch (e) {}
-                  }
+                  if (/continue|ok|got it|accept|agree|i agree|allow all|rejected|understand/i.test(t)) { try { b.click(); } catch (e) {} }
                 }
               } catch (e) {}
             }
-
             function scan() {
               if (bind()) { missingSince = 0; }
               else {
                 var now = Date.now();
                 if (!missingSince) missingSince = now;
-                else if (now - missingSince > 10000) {
-                  send('error', { reason: 'no-video-element' });
-                  missingSince = now + 30000;
-                }
+                else if (now - missingSince > 10000) { send('error', { reason: 'no-video-element' }); missingSince = now + 30000; }
               }
               clearDialogs();
             }
-
             window.__ytBgrCmd = function (name, arg) {
               var v = video || findVideo();
               try {
@@ -327,24 +244,13 @@ jobs:
                 return true;
               } catch (e) { return false; }
             };
-
-            window.addEventListener('yt-navigate-finish', function () {
-              metaSig = ''; lastSecond = -1;
-              setTimeout(scan, 400);
-            });
+            window.addEventListener('yt-navigate-finish', function () { metaSig = ''; lastSecond = -1; setTimeout(scan, 400); });
             window.addEventListener('yt-page-data-updated', function () { setTimeout(scan, 300); });
-
             try {
-              new MutationObserver(function () {
-                if (navTimer) clearTimeout(navTimer);
-                navTimer = setTimeout(scan, 250);
-              }).observe(document.documentElement, { childList: true, subtree: true });
+              new MutationObserver(function () { if (navTimer) clearTimeout(navTimer); navTimer = setTimeout(scan, 250); })
+                .observe(document.documentElement, { childList: true, subtree: true });
             } catch (e) {}
-
-            document.addEventListener('visibilitychange', function () {
-              if (!document.hidden) scan();
-            });
-
+            document.addEventListener('visibilitychange', function () { if (!document.hidden) scan(); });
             setInterval(scan, 1000);
             scan();
           })();
@@ -362,6 +268,7 @@ jobs:
           import android.content.Context;
           import android.content.Intent;
           import android.content.IntentFilter;
+          import android.content.MutableContextWrapper;
           import android.graphics.Bitmap;
           import android.graphics.BitmapFactory;
           import android.media.AudioAttributes;
@@ -374,7 +281,6 @@ jobs:
           import android.os.IBinder;
           import android.os.Looper;
           import android.util.Log;
-          import android.view.MutableContextWrapper;
           import android.webkit.CookieManager;
           import android.webkit.JavascriptInterface;
           import android.webkit.RenderProcessGoneDetail;
@@ -413,12 +319,10 @@ jobs:
               private MediaSession session;
               private NotificationManager nm;
               private AudioManager audio;
-
               private AudioFocusRequest focusRequest;
               private AudioManager.OnAudioFocusChangeListener focusListener;
               private boolean resumeOnFocusGain = false;
               private boolean noisyRegistered = false;
-
               private boolean playing = false;
               private int position = 0;
               private int duration = 0;
@@ -430,9 +334,7 @@ jobs:
 
               private final BroadcastReceiver noisy = new BroadcastReceiver() {
                   @Override public void onReceive(Context c, Intent i) {
-                      if (i != null && AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(i.getAction())) {
-                          pause();
-                      }
+                      if (i != null && AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(i.getAction())) pause();
                   }
               };
 
@@ -455,10 +357,7 @@ jobs:
                   if (intent != null) {
                       if (intent.getBooleanExtra(EXTRA_DESKTOP_UA, false)) sDesktopUa = true;
                       String url = intent.getStringExtra(EXTRA_URL);
-                      if (url != null && !url.isEmpty()) {
-                          sLastUrl = url;
-                          load(url);
-                      }
+                      if (url != null && !url.isEmpty()) { sLastUrl = url; load(url); }
                   }
                   return START_STICKY;
               }
@@ -494,22 +393,21 @@ jobs:
               }
 
               public static void stop(Context ctx) {
-                  try { ctx.stopService(new Intent(ctx, YtWebViewService.class)); }
-                  catch (Exception ignored) {}
+                  try { ctx.stopService(new Intent(ctx, YtWebViewService.class)); } catch (Exception ignored) {}
               }
 
               public static void cmd(String name, double arg) {
                   YtWebViewService s = INSTANCE;
                   if (s == null) return;
                   final String n = name; final double a = arg;
-                  s.runOnUiThread(new Runnable() { public void run() { sendCmd(n, a); } });
+                  s.main.post(new Runnable() { public void run() { s.sendCmd(n, a); } });
               }
 
               public static void load(final String url) {
                   YtWebViewService s = INSTANCE;
                   if (s == null) return;
-                  s.runOnUiThread(new Runnable() {
-                      public void run() { sLastUrl = url; sendCmd("navigate", 0); }
+                  s.main.post(new Runnable() {
+                      public void run() { s.sLastUrl = url; s.sendCmd("navigate", 0); }
                   });
               }
 
@@ -686,7 +584,7 @@ jobs:
                   o.put("state", st);
                   o.put("position", pos);
                   o.put("duration", dur);
-                  p.notifyListeners("ytState", o);
+                  p.emit("ytState", o);
               }
 
               private void emitMeta() {
@@ -697,7 +595,7 @@ jobs:
                   o.put("artist", artist);
                   o.put("artwork", artwork);
                   o.put("videoId", videoId);
-                  p.notifyListeners("ytMeta", o);
+                  p.emit("ytMeta", o);
               }
 
               private void emitError(String reason) {
@@ -705,7 +603,7 @@ jobs:
                   if (p == null) return;
                   com.getcapacitor.JSObject o = new com.getcapacitor.JSObject();
                   o.put("reason", reason);
-                  p.notifyListeners("ytError", o);
+                  p.emit("ytError", o);
               }
 
               private void createChannel() {
@@ -741,15 +639,9 @@ jobs:
                       focusListener = new AudioManager.OnAudioFocusChangeListener() {
                           public void onAudioFocusChange(int t) {
                               try {
-                                  if (t == AudioManager.AUDIOFOCUS_LOSS) {
-                                      resumeOnFocusGain = false;
-                                      pause();
-                                  } else if (t == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
-                                      resumeOnFocusGain = true;
-                                      pause();
-                                  } else if (t == AudioManager.AUDIOFOCUS_GAIN) {
-                                      if (resumeOnFocusGain) { resumeOnFocusGain = false; play(); }
-                                  }
+                                  if (t == AudioManager.AUDIOFOCUS_LOSS) { resumeOnFocusGain = false; pause(); }
+                                  else if (t == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) { resumeOnFocusGain = true; pause(); }
+                                  else if (t == AudioManager.AUDIOFOCUS_GAIN) { if (resumeOnFocusGain) { resumeOnFocusGain = false; play(); } }
                               } catch (Exception ignored) {}
                           }
                       };
@@ -798,8 +690,7 @@ jobs:
                           @Override public void onSeekTo(long pos) { sendCmd("seek", pos / 1000.0); }
                       });
                       session.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS
-                          | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
-                          | MediaSession.FLAG_HANDLES_SEEK);
+                          | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
                       session.setActive(true);
                   } catch (Exception e) { Log.w(TAG, "session: " + e); }
               }
@@ -815,7 +706,6 @@ jobs:
                               | PlaybackState.ACTION_STOP)
                           .setState(st, position, 1.0f);
                       session.setPlaybackState(b.build());
-
                       if (title != null && !title.isEmpty()) {
                           android.media.MediaMetadata.Builder mb = new android.media.MediaMetadata.Builder()
                               .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, title);
@@ -856,7 +746,6 @@ jobs:
                   Context c = getApplicationContext();
                   String t = (title == null || title.isEmpty()) ? "YouTube" : title;
                   String a = (artist == null || artist.isEmpty()) ? "Loading" : artist;
-
                   Notification.Builder b = new Notification.Builder(c);
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) b.setChannelId(CHANNEL_ID);
                   b.setContentTitle(t);
@@ -867,21 +756,17 @@ jobs:
                   b.setWhen(0);
                   b.setPriority(Notification.PRIORITY_MAX);
                   if (artBitmap != null) b.setLargeIcon(artBitmap);
-
                   Intent open = new Intent(c, YtPlayerActivity.class);
                   open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                   b.setContentIntent(PendingIntent.getActivity(c, 0, open, piFlags()));
-
                   b.addAction(android.R.drawable.ic_media_previous, "Previous", null);
                   b.addAction(playing ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
                       playing ? "Pause" : "Play", null);
                   b.addAction(android.R.drawable.ic_media_next, "Next", null);
                   b.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", null);
-
                   b.setStyle(new Notification.MediaStyle()
                       .setMediaSession(session == null ? null : session.getSessionToken())
                       .setShowActionsInCompactView(0, 1, 2));
-
                   return b.build();
               }
 
@@ -905,32 +790,24 @@ jobs:
                           if (bmp == null) return;
                           final Bitmap fb = bmp;
                           main.post(new Runnable() {
-                              public void run() {
-                                  artBitmap = fb;
-                                  updateNotification();
-                                  pushSession();
-                              }
+                              public void run() { artBitmap = fb; updateNotification(); pushSession(); }
                           });
                       }
                   }).start();
               }
 
               public void play() {
-                  runOnUiThread(new Runnable() {
+                  main.post(new Runnable() {
                       public void run() { requestFocus(); sendCmd("play", 0); }
                   });
               }
 
               public void pause() {
-                  runOnUiThread(new Runnable() {
-                      public void run() { sendCmd("pause", 0); }
-                  });
+                  main.post(new Runnable() { public void run() { sendCmd("pause", 0); } });
               }
 
               public void seekTo(long sec) {
-                  runOnUiThread(new Runnable() {
-                      public void run() { sendCmd("seek", (double) sec); }
-                  });
+                  main.post(new Runnable() { public void run() { sendCmd("seek", (double) sec); } });
               }
 
               static void attach(WebView wv, MutableContextWrapper ctx, android.view.ViewGroup target) {
@@ -962,7 +839,6 @@ jobs:
           package com.ashs.ytbgr;
 
           import android.app.Activity;
-          import android.content.Intent;
           import android.os.Bundle;
           import android.webkit.WebView;
           import android.widget.Button;
@@ -977,7 +853,6 @@ jobs:
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   setContentView(R.layout.activity_yt_player);
-
                   container = findViewById(R.id.ytContainer);
                   Button close = findViewById(R.id.ytClose);
                   if (close != null) {
@@ -985,7 +860,6 @@ jobs:
                           public void onClick(android.view.View v) { finish(); }
                       });
                   }
-
                   if (YtWebViewService.sWebView == null) {
                       String url = null;
                       try { url = getIntent().getStringExtra("url"); } catch (Exception ignored) {}
@@ -996,22 +870,13 @@ jobs:
               }
 
               @Override
-              protected void onResume() {
-                  super.onResume();
-                  attachWebView();
-              }
+              protected void onResume() { super.onResume(); attachWebView(); }
 
               @Override
-              protected void onPause() {
-                  detachWebView();
-                  super.onPause();
-              }
+              protected void onPause() { detachWebView(); super.onPause(); }
 
               @Override
-              protected void onDestroy() {
-                  detachWebView();
-                  super.onDestroy();
-              }
+              protected void onDestroy() { detachWebView(); super.onDestroy(); }
 
               private void attachWebView() {
                   if (attached) return;
@@ -1020,9 +885,7 @@ jobs:
                   try {
                       YtWebViewService.attach(wv, YtWebViewService.sContextWrapper, container);
                       attached = true;
-                  } catch (Exception e) {
-                      attached = false;
-                  }
+                  } catch (Exception e) { attached = false; }
               }
 
               private void detachWebView() {
@@ -1075,13 +938,17 @@ jobs:
                   YtWebViewService.sPlugin = new java.lang.ref.WeakReference<YtBgrPlugin>(this);
               }
 
+              /** notifyListeners() is protected in Plugin; this is the public bridge. */
+              public void emit(String event, JSObject data) {
+                  try { notifyListeners(event, data); } catch (Exception ignored) {}
+              }
+
               @PluginMethod
               public void open(PluginCall call) {
                   String url = call.getString("url");
                   Boolean desktop = call.getBoolean("desktopUa", false);
                   final String u = (url == null || url.isEmpty()) ? YtWebViewService.DEFAULT_URL : url;
                   final boolean du = desktop != null && desktop;
-
                   if (Build.VERSION.SDK_INT >= 33 && !hasNotifPermission()) {
                       try {
                           requestPermissionForAlias(ALIAS_NOTIF, call, "notifPermsCallback");
@@ -1103,12 +970,10 @@ jobs:
                   try {
                       YtWebViewService.sPlugin = new java.lang.ref.WeakReference<YtBgrPlugin>(this);
                       YtWebViewService.open(getContext(), url, desktopUa);
-
                       Intent i = new Intent(getContext(), YtPlayerActivity.class);
                       i.putExtra("url", url);
                       i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                       getContext().startActivity(i);
-
                       call.resolve(new JSObject().put("opened", true).put("url", url));
                   } catch (Exception e) {
                       call.reject("Could not start: " + e.getMessage());
@@ -1126,16 +991,10 @@ jobs:
               }
 
               @PluginMethod
-              public void play(PluginCall call) {
-                  YtWebViewService.cmd("play", 0);
-                  call.resolve();
-              }
+              public void play(PluginCall call) { YtWebViewService.cmd("play", 0); call.resolve(); }
 
               @PluginMethod
-              public void pause(PluginCall call) {
-                  YtWebViewService.cmd("pause", 0);
-                  call.resolve();
-              }
+              public void pause(PluginCall call) { YtWebViewService.cmd("pause", 0); call.resolve(); }
 
               @PluginMethod
               public void seekTo(PluginCall call) {
@@ -1163,9 +1022,7 @@ jobs:
                       if (Build.VERSION.SDK_INT < 33) return true;
                       return getContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                           == android.content.pm.PackageManager.PERMISSION_GRANTED;
-                  } catch (Exception e) {
-                      return true;
-                  }
+                  } catch (Exception e) { return true; }
               }
           }
           YTBGR_PLG_EOF
@@ -1183,54 +1040,39 @@ jobs:
 
           cat > plugins/yt-bgr/dist/esm/index.d.ts <<'YTBGR_DTS_EOF'
           import { registerPlugin } from '@capacitor/core';
-
-          export interface YtOpenOptions { url?: string; desktopUa?: boolean; }
-          export interface YtStateEvent {
-            state: 'idle' | 'playing' | 'paused' | 'buffering' | 'ended';
-            position: number;
-            duration: number;
-          }
-          export interface YtMetaEvent { title: string; artist: string; artwork: string; videoId: string; }
-          export interface YtErrorEvent { reason: string; }
           export interface YtListenerHandle { remove(): Promise<void>; }
-
           export interface YtBgrPlugin {
-            open(options?: YtOpenOptions): Promise<void>;
+            open(options?: { url?: string; desktopUa?: boolean }): Promise<void>;
             close(): Promise<void>;
             play(): Promise<void>;
             pause(): Promise<void>;
             seekTo(options: { sec: number }): Promise<void>;
             loadUrl(options: { url: string }): Promise<void>;
             isActive(): Promise<{ active: boolean }>;
-            addListener(cb: 'ytState', fn: (e: YtStateEvent) => void): Promise<YtListenerHandle>;
-            addListener(cb: 'ytMeta', fn: (e: YtMetaEvent) => void): Promise<YtListenerHandle>;
-            addListener(cb: 'ytError', fn: (e: YtErrorEvent) => void): Promise<YtListenerHandle>;
+            addListener(cb: 'ytState', fn: (e: any) => void): Promise<YtListenerHandle>;
+            addListener(cb: 'ytMeta', fn: (e: any) => void): Promise<YtListenerHandle>;
+            addListener(cb: 'ytError', fn: (e: any) => void): Promise<YtListenerHandle>;
             removeAllListeners(): Promise<void>;
           }
-
           export declare const YtBgr: YtBgrPlugin;
           YTBGR_DTS_EOF
 
-          # Make sure package.json references the generated plugin
           node -e "
             const fs=require('fs');
             const p=JSON.parse(fs.readFileSync('package.json','utf8'));
             p.dependencies = p.dependencies || {};
             p.dependencies['ashs-yt-bgr'] = 'file:plugins/yt-bgr';
             fs.writeFileSync('package.json', JSON.stringify(p,null,2));
-            console.log('yt-bgr dependency registered');
           "
           echo "yt-bgr source generated"
 
-      - name: Re-install (picks up the generated plugin)
-        run: |
-          npm install --no-audit --no-fund
+      - name: Re-install
+        run: npm install --no-audit --no-fund
 
-      - name: Stage web assets (keeps node_modules OUT of the APK)
+      - name: Stage web assets
         run: |
-          mkdir -p www
-          cp index.html styles.css app.js ytbgr.js online.js manifest.json sw.js icon.svg icon-192.png icon-512.png www/
           mkdir -p www/providers
+          cp index.html styles.css app.js ytbgr.js online.js manifest.json sw.js icon.svg icon-192.png icon-512.png www/
           cp providers/types.js providers/config.js providers/searchCache.js providers/youtube.js providers/audius.js providers/archive.js providers/index.js providers/player.js www/providers/
           cp .nojekyll www/ 2>/dev/null || true
 
@@ -1239,7 +1081,7 @@ jobs:
           if [ ! -d android ]; then npx cap add android; fi
           npx cap sync android
 
-      - name: Generate launcher icons + splash from assets/icon.png
+      - name: Generate launcher icons + splash
         run: |
           npx @capacitor/assets generate --android --iconBackgroundColor '#FFF3E0' --iconBackgroundColorDark '#1e120b' --splashBackgroundColor '#1e120b' --splashBackgroundColorDark '#0b100c'
 
