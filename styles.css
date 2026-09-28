@@ -261,3 +261,9 @@ input[type=range]::-moz-range-thumb{width:14px; height:14px; border-radius:6px; 
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important}
 }
+
+/* Online tab */
+#onlineSrcRow{margin-top:0}
+#onlineStatus{min-height:18px}
+@media (max-width:380px){ .bottom-nav button small{font-size:10px} .bottom-nav .ic{width:19px; height:19px} }
+

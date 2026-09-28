@@ -1,0 +1,16 @@
+{
+  "name": "ashs-yt-bgr",
+  "version": "1.0.0",
+  "description": "YouTube background playback: official site in a WebView owned by a mediaPlayback foreground service, with a native MediaSession mirrored from the page player. No API, no stream extraction, no download.",
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "files": ["dist/", "android/"],
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "author": "",
+  "license": "MIT"
+}

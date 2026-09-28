@@ -44,6 +44,40 @@ app — opens instantly with **zero internet**.
 ## 🖥️ Test on PC
 Double-click `start-pc.bat` → `http://localhost:8000` (phone-size column is normal).
 
+## 🌐 Online tab — free full-length streaming
+Three free providers are queried at once and merged, with a provider badge per row.
+
+| Provider | Key | Plays | Notes |
+|---|---|---|---|
+| **YouTube** | free Data API v3 key | official IFrame player | Mainstream catalogue, full length. ~100 searches/day |
+| **Audius** | none | direct stream | Unlimited, no quota, can be saved offline |
+| **Internet Archive** | none | direct stream | Public-domain / CC, unlimited |
+
+- **Set your key** → `providers/config.js` → `YOUTUBE_API_KEY`
+  (Google Cloud Console → enable *YouTube Data API v3* → Credentials → API key;
+  no card needed, 10,000 units/day, `search.list` = 100 units).
+- Results are cached for 6h, so repeating a search costs **zero** quota.
+- If no key is set, a feature-flagged keyless Invidious search is used as a
+  fallback — unreliable by nature, never a hard dependency.
+- YouTube tracks play in Google's own player (chrome stays visible). Nothing is
+  hidden, no ads are blocked and no stream URL is ever extracted.
+- `••• → Save offline` works for Audius tracks (goes to *Online Saves*).
+
+### ▶️ Play in the background (Android)
+`plugins/yt-bgr` embeds the **official** YouTube site in a WebView owned by a
+`mediaPlayback` foreground service, so audio keeps playing with the app
+backgrounded or the screen off — with lock-screen controls.
+
+- **Open YouTube** button on the Online tab, or **Play in background** while an
+  IFrame track is playing (hands the video off to the WebView module).
+- While it is active your app's own notification stands down, so the lock screen
+  never shows two players. Closing it restores your normal controls.
+- Requires notification permission on Android 13+.
+
+> The WebView module and the IFrame player must never run at the same time —
+> the app enforces this by taking over the MediaSession in only one direction at
+> a time.
+
 ## Android notes
 - **Adding music:** Add → **Scan device music** finds everything at once
   (allow music access when asked). Manual pick still works for anything missed.
@@ -68,7 +102,8 @@ Double-click `start-pc.bat` → `http://localhost:8000` (phone-size column is no
 > content → Commit. Same trick for `.nojekyll` if needed.
 
 ## Files (upload them all)
-`index.html` · `styles.css` · `app.js` · `package.json` · `capacitor.config.json` ·
+`index.html` · `styles.css` · `app.js` · `ytbgr.js` · `online.js` · `providers/` ·
+`package.json` · `capacitor.config.json` ·
 `.github/workflows/android.yml` · `manifest.json` · `sw.js` · icons ·
 `.nojekyll` · `.gitignore` · `plugins/` · `assets/icon.png` · `README.md` · `BUILD-APK.md` · `start-pc.bat`
 

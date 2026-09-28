@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <application>
+
+    <!-- stopWithTask="false": swiping the app away from recents must NOT stop
+         playback. The service only ends on the STOP action or close(). -->
+    <service
+        android:name="com.ashs.ytbgr.YtWebViewService"
+        android:exported="false"
+        android:stopWithTask="false"
+        android:foregroundServiceType="mediaPlayback" />
+
+    <activity
+        android:name="com.ashs.ytbgr.YtPlayerActivity"
+        android:exported="false"
+        android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode"
+        android:launchMode="singleTask"
+        android:theme="@style/YtBgrTheme"
+        android:hardwareAccelerated="true" />
+
+  </application>
+</manifest>

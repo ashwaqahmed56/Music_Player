@@ -92,8 +92,14 @@ async function scanDevice(opts){
   coversLater();
   return deviceTracks.length;
 }
-const getT = (id)=>cache.find(t=>t.id===id);
+/* Online registry: tracks streamed from free online providers (Audius/YouTube).
+   Kept outside `cache` so offline lists/counts stay pure. getT() checks here first. */
+let onlineReg = new Map();
+function onlinePin(t){ if(t && t.id) onlineReg.set(t.id, t); return t; }
+function onlineGet(id){ return onlineReg.get(id); }
+const getT = (id)=>onlineReg.get(id)||cache.find(t=>t.id===id);
 const all = ()=>cache;
+const getAnyT = (id)=>onlineReg.get(id)||cache.find(t=>t.id===id);
 
 let lastAppError = '', _lastErrToast = 0;
 function reportError(msg){
@@ -140,7 +146,10 @@ function isPublicHttp(u){ return /^https?:/i.test(u||'') && !/localhost|127\.0\.
 function setSrcSafe(t){
   try{
     const s = t.src||'';
-    const noCors = /^(blob|content):/i.test(s) || /localhost|127\.0\.0\.1|_capacitor_/i.test(s);
+    // Online streams (Audius/piped proxy) often lack CORS headers: play without
+    // crossOrigin so the <audio> element works. (EQ analyser stays off for them.)
+    const onlineNoCors = t.source==='online' || t.source==='online-yt';
+    const noCors = onlineNoCors || /^(blob|content):/i.test(s) || /localhost|127\.0\.0\.1|_capacitor_/i.test(s);
     if(noCors){ try{audio.removeAttribute('crossOrigin');}catch(e){} try{audio.crossOrigin=null;}catch(e){} }
     else if(/^https?:/i.test(s)){ audio.crossOrigin='anonymous'; }
     else { try{audio.removeAttribute('crossOrigin');}catch(e){} }
@@ -609,6 +618,9 @@ function mcUpdateElapsed(){
   }catch(e){}
 }
 function syncNotif(){
+  // Single-MediaSession rule: while the YouTube background module is active it
+  // owns the lock screen, so the app's own session/notification stands down.
+  if(window.ASH_EXTERNAL_PLAYER) return;
   mediaSession(); // browser / PWA path
   try{
     const MC=mcPlugin(); if(!MC) return;
@@ -648,7 +660,7 @@ function syncNotif(){
   }catch(e){}
 }
 
-const TAB_ORDER=['home','new','radio','library'];
+const TAB_ORDER=['home','new','online','radio','library'];
 function tab(name){ closeSearchOverlay(); if(selecting) setSelecting(false);
   let dir='fwd'; try{ const cur=document.querySelector('.screen.active');
     const ci=cur?TAB_ORDER.indexOf(cur.id.replace('screen-','')):0;
