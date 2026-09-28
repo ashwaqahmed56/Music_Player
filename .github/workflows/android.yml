@@ -2,6 +2,9 @@ name: Build Ash's Player APK (standalone, offline)
 
 # Free cloud build: every push + manual runs compile a real native APK
 # with your app files bundled INSIDE (no website loading, works offline).
+#
+# NOTE: the yt-bgr Android plugin is generated inline below, so this workflow
+# is fully self-contained. You never have to upload plugins/yt-bgr yourself.
 on:
   workflow_dispatch:
   push:
@@ -10,6 +13,9 @@ on:
       - 'index.html'
       - 'styles.css'
       - 'app.js'
+      - 'online.js'
+      - 'ytbgr.js'
+      - 'providers/**'
       - 'capacitor.config.json'
       - 'package.json'
       - 'plugins/**'
@@ -40,10 +46,1192 @@ jobs:
           fi
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
+      - name: Generate yt-bgr plugin source
+        run: |
+          set -e
+          mkdir -p plugins/yt-bgr/android/src/main/java/com/ashs/ytbgr
+          mkdir -p plugins/yt-bgr/android/src/main/assets
+          mkdir -p plugins/yt-bgr/android/src/main/res/layout
+          mkdir -p plugins/yt-bgr/android/src/main/res/values
+          mkdir -p plugins/yt-bgr/dist/esm
+
+          cat > plugins/yt-bgr/package.json <<'YTBGR_PKG_EOF'
+          {
+            "name": "ashs-yt-bgr",
+            "version": "1.0.0",
+            "description": "YouTube background playback: official site in a WebView owned by a mediaPlayback foreground service, with a native MediaSession mirrored from the page player. No API, no stream extraction, no download.",
+            "main": "dist/plugin.cjs.js",
+            "module": "dist/esm/index.js",
+            "types": "dist/esm/index.d.ts",
+            "files": ["dist/", "android/"],
+            "capacitor": { "android": { "src": "android" } },
+            "author": "",
+            "license": "MIT"
+          }
+          YTBGR_PKG_EOF
+
+          cat > plugins/yt-bgr/android/build.gradle <<'YTBGR_GRADLE_EOF'
+          apply plugin: 'com.android.library'
+
+          android {
+              namespace 'com.ashs.ytbgr'
+              compileSdk 34
+
+              defaultConfig {
+                  minSdk 22
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+                  }
+              }
+              lintOptions {
+                  abortOnError false
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+
+          repositories {
+              google()
+              mavenCentral()
+          }
+
+          dependencies {
+              implementation fileTree(dir: 'libs', include: ['*.jar'])
+              implementation project(':capacitor-android')
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'androidx.legacy:legacy-support-v4:1.0.0'
+          }
+          YTBGR_GRADLE_EOF
+
+          cat > plugins/yt-bgr/android/proguard-rules.pro <<'YTBGR_PRO_EOF'
+          -keepclassmembers class com.ashs.ytbgr.YtWebViewService$JsBridge {
+              public *;
+          }
+          -keepattributes JavascriptInterface
+          YTBGR_PRO_EOF
+
+          cat > plugins/yt-bgr/android/src/main/AndroidManifest.xml <<'YTBGR_MAN_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.WAKE_LOCK" />
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+            <application>
+              <!-- stopWithTask="false": swiping from recents must NOT stop playback -->
+              <service
+                  android:name="com.ashs.ytbgr.YtWebViewService"
+                  android:exported="false"
+                  android:stopWithTask="false"
+                  android:foregroundServiceType="mediaPlayback" />
+              <activity
+                  android:name="com.ashs.ytbgr.YtPlayerActivity"
+                  android:exported="false"
+                  android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode"
+                  android:launchMode="singleTask"
+                  android:theme="@style/YtBgrTheme"
+                  android:hardwareAccelerated="true" />
+            </application>
+          </manifest>
+          YTBGR_MAN_EOF
+
+          cat > plugins/yt-bgr/android/src/main/res/values/styles.xml <<'YTBGR_STY_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="YtBgrTheme" parent="Theme.AppCompat.NoActionBar">
+                  <item name="android:windowBackground">@android:color/black</item>
+                  <item name="android:statusBarColor">@android:color/black</item>
+                  <item name="android:navigationBarColor">@android:color/black</item>
+                  <item name="android:windowNoTitle">true</item>
+              </style>
+          </resources>
+          YTBGR_STY_EOF
+
+          cat > plugins/yt-bgr/android/src/main/res/layout/activity_yt_player.xml <<'YTBGR_LAY_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/ytRoot"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="@android:color/black"
+              android:fitsSystemWindows="false">
+              <FrameLayout
+                  android:id="@+id/ytContainer"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent" />
+              <Button
+                  android:id="@+id/ytClose"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_gravity="top|end"
+                  android:layout_margin="12dp"
+                  android:alpha="0.85"
+                  android:minWidth="0dp"
+                  android:paddingLeft="14dp"
+                  android:paddingRight="14dp"
+                  android:text="Close"
+                  android:textSize="13sp" />
+          </FrameLayout>
+          YTBGR_LAY_EOF
+
+          cat > plugins/yt-bgr/android/src/main/assets/ytbridge.js <<'YTBGR_JS_EOF'
+          (function () {
+            if (window.__ytBgrInstalled) return;
+            window.__ytBgrInstalled = true;
+
+            var BRIDGE = window.AndroidYt;
+            var video = null;
+            var lastSecond = -1;
+            var navTimer = null;
+            var missingSince = 0;
+            var metaSig = '';
+
+            function send(type, data) {
+              try {
+                if (BRIDGE && BRIDGE.post) BRIDGE.post(JSON.stringify({ type: type, data: data }));
+              } catch (e) {}
+            }
+            function findVideo() {
+              try { return document.querySelector('video'); } catch (e) { return null; }
+            }
+            function thumbFor(id) { return id ? 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg' : ''; }
+
+            function readMeta() {
+              var out = {};
+              try {
+                var mp = document.getElementById('movie_player');
+                if (mp && typeof mp.getVideoData === 'function') {
+                  var d = mp.getVideoData() || {};
+                  out.title = d.title || '';
+                  out.artist = d.author || '';
+                  out.videoId = d.video_id || '';
+                  if (d.duration) out.duration = Math.round(Number(d.duration) * 1000);
+                  out.artwork = thumbFor(d.video_id);
+                }
+              } catch (e) {}
+              if (!out.title) {
+                var h = document.querySelector('h1 yt-formatted-string, h1.title, h1');
+                out.title = (h && h.textContent || document.title || '').trim();
+              }
+              if (!out.artist) {
+                var a = document.querySelector('#owner-name a, ytd-channel-name a, #upload-info a, .ytd-channel-name');
+                out.artist = (a && a.textContent || '').trim();
+              }
+              if (!out.artwork) {
+                var og = document.querySelector('meta[property="og:image"]');
+                if (og && og.content) out.artwork = og.content;
+                else if (out.videoId) out.artwork = thumbFor(out.videoId);
+              }
+              if (!out.duration && video && isFinite(video.duration)) {
+                out.duration = Math.round(video.duration * 1000);
+              }
+              if (!out.title) return null;
+              return out;
+            }
+
+            function pushMeta(force) {
+              var m = readMeta();
+              if (!m) return;
+              var sig = (m.title || '') + '|' + (m.artist || '') + '|' + (m.videoId || '');
+              if (!force && sig === metaSig) return;
+              metaSig = sig;
+              send('meta', m);
+            }
+
+            function readState() {
+              var v = video;
+              if (!v) return { state: 'idle', position: 0, duration: 0 };
+              var s = 'paused';
+              if (v.ended) s = 'ended';
+              else if (!v.paused) s = (v.seeking || v.readyState < 3) ? 'buffering' : 'playing';
+              return {
+                state: s,
+                position: Math.floor((v.currentTime || 0) * 1000),
+                duration: Math.floor((v.duration || 0) * 1000)
+              };
+            }
+            function pushState() { send('state', readState()); }
+
+            function bind() {
+              var v = findVideo();
+              if (!v) return false;
+              if (v.__ytBgrBound) { video = v; return true; }
+              v.__ytBgrBound = true;
+              video = v;
+              ['play', 'pause', 'ended', 'waiting', 'playing', 'loadedmetadata',
+               'seeked', 'ratechange', 'stalled', 'canplay'].forEach(function (ev) {
+                v.addEventListener(ev, function () {
+                  pushState();
+                  pushMeta(ev === 'loadedmetadata' || ev === 'playing');
+                });
+              });
+              v.addEventListener('timeupdate', function () {
+                var s = Math.floor(v.currentTime || 0);
+                if (s !== lastSecond) { lastSecond = s; pushState(); }
+              });
+              pushMeta(true);
+              return true;
+            }
+
+            function clearDialogs() {
+              try {
+                var nodes = document.querySelectorAll(
+                  '.ytp-dialog-button, .ytp-confirm-dialog-rollup button, ' +
+                  'tp-yt-paper-dialog #button, ytd-consent-bump-v2-lightbox button, ' +
+                  'form[action*="consent"] button'
+                );
+                for (var i = 0; i < nodes.length; i++) {
+                  var b = nodes[i];
+                  if (b.disabled) continue;
+                  var t = (b.textContent || '').trim();
+                  if (!t) continue;
+                  if (/^(no thanks|decline|reject|only necessary)$/i.test(t)) continue;
+                  if (/continue|ok|got it|accept|agree|i agree|allow all|rejected|understand/i.test(t)) {
+                    try { b.click(); } catch (e) {}
+                  }
+                }
+              } catch (e) {}
+            }
+
+            function scan() {
+              if (bind()) { missingSince = 0; }
+              else {
+                var now = Date.now();
+                if (!missingSince) missingSince = now;
+                else if (now - missingSince > 10000) {
+                  send('error', { reason: 'no-video-element' });
+                  missingSince = now + 30000;
+                }
+              }
+              clearDialogs();
+            }
+
+            window.__ytBgrCmd = function (name, arg) {
+              var v = video || findVideo();
+              try {
+                if (name === 'play') { if (v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); } }
+                else if (name === 'pause') { if (v) v.pause(); }
+                else if (name === 'seek') { if (v && isFinite(arg)) v.currentTime = arg; }
+                else if (name === 'next') { var n = document.querySelector('.ytp-next-button'); if (n) n.click(); }
+                else if (name === 'prev') { var p2 = document.querySelector('.ytp-prev-button'); if (p2) p2.click(); }
+                return true;
+              } catch (e) { return false; }
+            };
+
+            window.addEventListener('yt-navigate-finish', function () {
+              metaSig = ''; lastSecond = -1;
+              setTimeout(scan, 400);
+            });
+            window.addEventListener('yt-page-data-updated', function () { setTimeout(scan, 300); });
+
+            try {
+              new MutationObserver(function () {
+                if (navTimer) clearTimeout(navTimer);
+                navTimer = setTimeout(scan, 250);
+              }).observe(document.documentElement, { childList: true, subtree: true });
+            } catch (e) {}
+
+            document.addEventListener('visibilitychange', function () {
+              if (!document.hidden) scan();
+            });
+
+            setInterval(scan, 1000);
+            scan();
+          })();
+          YTBGR_JS_EOF
+
+          cat > plugins/yt-bgr/android/src/main/java/com/ashs/ytbgr/YtWebViewService.java <<'YTBGR_SVC_EOF'
+          package com.ashs.ytbgr;
+
+          import android.app.Notification;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
+          import android.app.Service;
+          import android.content.BroadcastReceiver;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.IntentFilter;
+          import android.graphics.Bitmap;
+          import android.graphics.BitmapFactory;
+          import android.media.AudioAttributes;
+          import android.media.AudioFocusRequest;
+          import android.media.AudioManager;
+          import android.media.session.MediaSession;
+          import android.media.session.PlaybackState;
+          import android.os.Build;
+          import android.os.Handler;
+          import android.os.IBinder;
+          import android.os.Looper;
+          import android.util.Log;
+          import android.view.MutableContextWrapper;
+          import android.webkit.CookieManager;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.RenderProcessGoneDetail;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+
+          import org.json.JSONObject;
+
+          import java.io.InputStream;
+          import java.lang.ref.WeakReference;
+          import java.net.HttpURLConnection;
+          import java.net.URL;
+
+          public class YtWebViewService extends Service {
+
+              private static final String TAG = "YtBgr";
+              private static final String CHANNEL_ID = "ytbgr_media";
+              private static final int NOTIF_ID = 5731;
+
+              static final String DEFAULT_URL = "https://www.youtube.com";
+              private static final String EXTRA_URL = "url";
+              private static final String EXTRA_DESKTOP_UA = "desktopUa";
+
+              static WebView sWebView;
+              static MutableContextWrapper sContextWrapper;
+              static String sLastUrl = DEFAULT_URL;
+              static boolean sDesktopUa = false;
+              static boolean sRunning = false;
+              static WeakReference<YtBgrPlugin> sPlugin = new WeakReference<>(null);
+              static YtWebViewService INSTANCE;
+
+              private final Handler main = new Handler(Looper.getMainLooper());
+
+              private MediaSession session;
+              private NotificationManager nm;
+              private AudioManager audio;
+
+              private AudioFocusRequest focusRequest;
+              private AudioManager.OnAudioFocusChangeListener focusListener;
+              private boolean resumeOnFocusGain = false;
+              private boolean noisyRegistered = false;
+
+              private boolean playing = false;
+              private int position = 0;
+              private int duration = 0;
+              private String title = "";
+              private String artist = "";
+              private String artwork = "";
+              private String videoId = "";
+              private Bitmap artBitmap;
+
+              private final BroadcastReceiver noisy = new BroadcastReceiver() {
+                  @Override public void onReceive(Context c, Intent i) {
+                      if (i != null && AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(i.getAction())) {
+                          pause();
+                      }
+                  }
+              };
+
+              @Override
+              public void onCreate() {
+                  super.onCreate();
+                  INSTANCE = this;
+                  nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                  audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                  createChannel();
+                  createSession();
+                  buildWebView();
+                  registerNoisy();
+                  sRunning = true;
+              }
+
+              @Override
+              public int onStartCommand(Intent intent, int flags, int startId) {
+                  goForeground();
+                  if (intent != null) {
+                      if (intent.getBooleanExtra(EXTRA_DESKTOP_UA, false)) sDesktopUa = true;
+                      String url = intent.getStringExtra(EXTRA_URL);
+                      if (url != null && !url.isEmpty()) {
+                          sLastUrl = url;
+                          load(url);
+                      }
+                  }
+                  return START_STICKY;
+              }
+
+              @Override
+              public IBinder onBind(Intent intent) { return null; }
+
+              @Override
+              public void onDestroy() {
+                  unregisterNoisy();
+                  abandonFocus();
+                  if (session != null) {
+                      try { session.setActive(false); } catch (Exception ignored) {}
+                      try { session.release(); } catch (Exception ignored) {}
+                      session = null;
+                  }
+                  if (nm != null) { try { nm.cancel(NOTIF_ID); } catch (Exception ignored) {} }
+                  destroyWebView();
+                  sRunning = false;
+                  INSTANCE = null;
+                  emitState("idle", 0, 0);
+                  super.onDestroy();
+              }
+
+              public static void open(Context ctx, String url, boolean desktopUa) {
+                  sDesktopUa = desktopUa;
+                  if (url != null && !url.isEmpty()) sLastUrl = url;
+                  Intent i = new Intent(ctx, YtWebViewService.class);
+                  i.putExtra(EXTRA_URL, sLastUrl);
+                  i.putExtra(EXTRA_DESKTOP_UA, desktopUa);
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) ctx.startForegroundService(i);
+                  else ctx.startService(i);
+              }
+
+              public static void stop(Context ctx) {
+                  try { ctx.stopService(new Intent(ctx, YtWebViewService.class)); }
+                  catch (Exception ignored) {}
+              }
+
+              public static void cmd(String name, double arg) {
+                  YtWebViewService s = INSTANCE;
+                  if (s == null) return;
+                  final String n = name; final double a = arg;
+                  s.runOnUiThread(new Runnable() { public void run() { sendCmd(n, a); } });
+              }
+
+              public static void load(final String url) {
+                  YtWebViewService s = INSTANCE;
+                  if (s == null) return;
+                  s.runOnUiThread(new Runnable() {
+                      public void run() { sLastUrl = url; sendCmd("navigate", 0); }
+                  });
+              }
+
+              private void buildWebView() {
+                  if (sContextWrapper == null) sContextWrapper = new MutableContextWrapper(getApplicationContext());
+                  sContextWrapper.setBaseContext(getApplicationContext());
+                  if (sWebView != null) return;
+
+                  WebView wv = new WebView(sContextWrapper);
+                  sWebView = wv;
+
+                  WebSettings st = wv.getSettings();
+                  st.setJavaScriptEnabled(true);
+                  st.setDomStorageEnabled(true);
+                  st.setDatabaseEnabled(true);
+                  st.setMediaPlaybackRequiresUserGesture(false);
+                  st.setLoadWithOverviewMode(true);
+                  st.setUseWideViewPort(true);
+                  st.setSupportZoom(false);
+                  st.setBuiltInZoomControls(false);
+                  try { st.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW); } catch (Exception ignored) {}
+
+                  try {
+                      CookieManager.getInstance().setAcceptCookie(true);
+                      CookieManager.getInstance().setAcceptThirdPartyCookies(wv, true);
+                  } catch (Exception ignored) {}
+
+                  if (sDesktopUa) {
+                      try {
+                          st.setUserAgentString("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+                      } catch (Exception ignored) {}
+                  }
+
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      try { wv.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true); }
+                      catch (Exception ignored) {}
+                  }
+
+                  wv.setBackgroundColor(0xFF000000);
+                  wv.setWebChromeClient(new WebChromeClient());
+                  wv.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                          try { view.loadUrl(url); } catch (Exception ignored) {}
+                          return true;
+                      }
+                      @Override
+                      public void onPageFinished(WebView view, String url) {
+                          if (url != null && url.startsWith("http")) sLastUrl = url;
+                          injectBridge();
+                      }
+                      @Override
+                      @android.annotation.TargetApi(Build.VERSION_CODES.O)
+                      public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                          Log.w(TAG, "renderer gone, recreating");
+                          rebuildWebView();
+                          return true;
+                      }
+                  });
+
+                  wv.addJavascriptInterface(new JsBridge(), "AndroidYt");
+
+                  String u = (sLastUrl == null || sLastUrl.isEmpty()) ? DEFAULT_URL : sLastUrl;
+                  wv.loadUrl(u);
+              }
+
+              private void injectBridge() {
+                  try {
+                      String js = loadAsset("ytbridge.js");
+                      if (js != null && !js.isEmpty() && sWebView != null) sWebView.evaluateJavascript(js, null);
+                  } catch (Exception e) { Log.w(TAG, "bridge: " + e); }
+              }
+
+              private String loadAsset(String name) {
+                  try {
+                      InputStream in = getAssets().open(name);
+                      byte[] buf = new byte[8192];
+                      StringBuilder sb = new StringBuilder();
+                      int n;
+                      while ((n = in.read(buf)) > 0) sb.append(new String(buf, 0, n));
+                      in.close();
+                      return sb.toString();
+                  } catch (Exception e) { return null; }
+              }
+
+              private void rebuildWebView() {
+                  try {
+                      if (sWebView != null) {
+                          if (sWebView.getParent() instanceof android.view.ViewGroup) {
+                              ((android.view.ViewGroup) sWebView.getParent()).removeView(sWebView);
+                          }
+                          sWebView.destroy();
+                      }
+                  } catch (Exception ignored) {}
+                  sWebView = null;
+                  buildWebView();
+              }
+
+              private void destroyWebView() {
+                  try {
+                      if (sWebView != null) {
+                          sWebView.loadUrl("about:blank");
+                          if (sWebView.getParent() instanceof android.view.ViewGroup) {
+                              ((android.view.ViewGroup) sWebView.getParent()).removeView(sWebView);
+                          }
+                          sWebView.destroy();
+                      }
+                  } catch (Exception ignored) {}
+                  sWebView = null;
+              }
+
+              private void sendCmd(String name, double arg) {
+                  if (sWebView == null) return;
+                  if ("navigate".equals(name)) {
+                      String u = (sLastUrl == null || sLastUrl.isEmpty()) ? DEFAULT_URL : sLastUrl;
+                      try { sWebView.loadUrl(u); } catch (Exception ignored) {}
+                      return;
+                  }
+                  String js;
+                  if ("seek".equals(name)) js = "window.__ytBgrCmd && window.__ytBgrCmd('seek'," + arg + ");";
+                  else js = "window.__ytBgrCmd && window.__ytBgrCmd('" + name + "',0);";
+                  try { sWebView.evaluateJavascript(js, null); } catch (Exception ignored) {}
+              }
+
+              public class JsBridge {
+                  @JavascriptInterface
+                  public void post(String json) {
+                      try {
+                          final JSONObject o = new JSONObject(json);
+                          final String type = o.optString("type");
+                          final JSONObject d = o.optJSONObject("data");
+                          main.post(new Runnable() {
+                              public void run() { handle(type, d); }
+                          });
+                      } catch (Exception e) { Log.w(TAG, "parse: " + e); }
+                  }
+              }
+
+              private void handle(String type, JSONObject d) {
+                  if (d == null) d = new JSONObject();
+                  if ("state".equals(type)) {
+                      String st = d.optString("state", "idle");
+                      int pos = d.optInt("position", 0);
+                      int dur = d.optInt("duration", 0);
+                      boolean wasPlaying = playing;
+                      playing = "playing".equals(st);
+                      if (pos > 0) position = pos;
+                      if (dur > 0) duration = dur;
+                      if (playing && !wasPlaying) requestFocus();
+                      else if (!playing && wasPlaying) position = 0;
+                      pushSession();
+                      updateNotification();
+                      emitState(st, position, duration);
+                  } else if ("meta".equals(type)) {
+                      title = d.optString("title", title);
+                      artist = d.optString("artist", artist);
+                      String v = d.optString("videoId", "");
+                      String art = d.optString("artwork", "");
+                      if (d.has("duration") && d.optInt("duration", 0) > 0) duration = d.optInt("duration", 0);
+                      if (!v.isEmpty()) videoId = v;
+                      if (!art.isEmpty() && !art.equals(artwork)) { artwork = art; fetchArt(art); }
+                      pushSession();
+                      updateNotification();
+                      emitMeta();
+                  } else if ("error".equals(type)) {
+                      emitError(d.optString("reason", "unknown"));
+                  }
+              }
+
+              private void emitState(String st, int pos, int dur) {
+                  YtBgrPlugin p = sPlugin.get();
+                  if (p == null) return;
+                  com.getcapacitor.JSObject o = new com.getcapacitor.JSObject();
+                  o.put("state", st);
+                  o.put("position", pos);
+                  o.put("duration", dur);
+                  p.notifyListeners("ytState", o);
+              }
+
+              private void emitMeta() {
+                  YtBgrPlugin p = sPlugin.get();
+                  if (p == null) return;
+                  com.getcapacitor.JSObject o = new com.getcapacitor.JSObject();
+                  o.put("title", title);
+                  o.put("artist", artist);
+                  o.put("artwork", artwork);
+                  o.put("videoId", videoId);
+                  p.notifyListeners("ytMeta", o);
+              }
+
+              private void emitError(String reason) {
+                  YtBgrPlugin p = sPlugin.get();
+                  if (p == null) return;
+                  com.getcapacitor.JSObject o = new com.getcapacitor.JSObject();
+                  o.put("reason", reason);
+                  p.notifyListeners("ytError", o);
+              }
+
+              private void createChannel() {
+                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+                  try {
+                      NotificationChannel ch = new NotificationChannel(CHANNEL_ID, "YouTube background playback", NotificationManager.IMPORTANCE_LOW);
+                      ch.setDescription("Controls for the in-app YouTube player");
+                      ch.setShowBadge(false);
+                      ch.setSound(null, null);
+                      nm.createNotificationChannel(ch);
+                  } catch (Exception ignored) {}
+              }
+
+              private void registerNoisy() {
+                  if (noisyRegistered) return;
+                  try {
+                      IntentFilter f = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+                      if (Build.VERSION.SDK_INT >= 33) registerReceiver(noisy, f, Context.RECEIVER_NOT_EXPORTED);
+                      else registerReceiver(noisy, f);
+                      noisyRegistered = true;
+                  } catch (Exception ignored) {}
+              }
+
+              private void unregisterNoisy() {
+                  if (!noisyRegistered) return;
+                  try { unregisterReceiver(noisy); } catch (Exception ignored) {}
+                  noisyRegistered = false;
+              }
+
+              private void requestFocus() {
+                  if (audio == null) return;
+                  if (focusListener == null) {
+                      focusListener = new AudioManager.OnAudioFocusChangeListener() {
+                          public void onAudioFocusChange(int t) {
+                              try {
+                                  if (t == AudioManager.AUDIOFOCUS_LOSS) {
+                                      resumeOnFocusGain = false;
+                                      pause();
+                                  } else if (t == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                                      resumeOnFocusGain = true;
+                                      pause();
+                                  } else if (t == AudioManager.AUDIOFOCUS_GAIN) {
+                                      if (resumeOnFocusGain) { resumeOnFocusGain = false; play(); }
+                                  }
+                              } catch (Exception ignored) {}
+                          }
+                      };
+                  }
+                  try {
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                          if (focusRequest == null) {
+                              AudioAttributes attrs = new AudioAttributes.Builder()
+                                  .setUsage(AudioAttributes.USAGE_MEDIA)
+                                  .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                  .build();
+                              focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                                  .setAudioAttributes(attrs)
+                                  .setOnAudioFocusChangeListener(focusListener)
+                                  .setWillPauseWhenDucked(false)
+                                  .build();
+                          }
+                          audio.requestAudioFocus(focusRequest);
+                      } else {
+                          audio.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+                      }
+                  } catch (Exception ignored) {}
+              }
+
+              private void abandonFocus() {
+                  if (audio == null) return;
+                  try {
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+                          audio.abandonAudioFocusRequest(focusRequest);
+                          focusRequest = null;
+                      } else if (focusListener != null) {
+                          audio.abandonAudioFocus(focusListener);
+                      }
+                  } catch (Exception ignored) {}
+              }
+
+              private void createSession() {
+                  try {
+                      session = new MediaSession(this, "AshYouTubeBg");
+                      session.setCallback(new MediaSession.Callback() {
+                          @Override public void onPlay() { play(); }
+                          @Override public void onPause() { pause(); }
+                          @Override public void onStop() { stop(YtWebViewService.this); }
+                          @Override public void onSkipToNext() { sendCmd("next", 0); }
+                          @Override public void onSkipToPrevious() { sendCmd("prev", 0); }
+                          @Override public void onSeekTo(long pos) { sendCmd("seek", pos / 1000.0); }
+                      });
+                      session.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS
+                          | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
+                          | MediaSession.FLAG_HANDLES_SEEK);
+                      session.setActive(true);
+                  } catch (Exception e) { Log.w(TAG, "session: " + e); }
+              }
+
+              private void pushSession() {
+                  if (session == null) return;
+                  try {
+                      int st = playing ? PlaybackState.STATE_PLAYING : PlaybackState.STATE_PAUSED;
+                      PlaybackState.Builder b = new PlaybackState.Builder()
+                          .setActions(PlaybackState.ACTION_PLAY | PlaybackState.ACTION_PAUSE
+                              | PlaybackState.ACTION_PLAY_PAUSE | PlaybackState.ACTION_SEEK_TO
+                              | PlaybackState.ACTION_SKIP_TO_NEXT | PlaybackState.ACTION_SKIP_TO_PREVIOUS
+                              | PlaybackState.ACTION_STOP)
+                          .setState(st, position, 1.0f);
+                      session.setPlaybackState(b.build());
+
+                      if (title != null && !title.isEmpty()) {
+                          android.media.MediaMetadata.Builder mb = new android.media.MediaMetadata.Builder()
+                              .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, title);
+                          if (artist != null && !artist.isEmpty()) {
+                              mb.putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, artist);
+                              mb.putString(android.media.MediaMetadata.METADATA_KEY_ALBUM_ARTIST, artist);
+                          }
+                          if (duration > 0) mb.putLong(android.media.MediaMetadata.METADATA_KEY_DURATION, duration);
+                          if (artwork != null && !artwork.isEmpty()) {
+                              mb.putString(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART_URI, artwork);
+                          }
+                          session.setMetadata(mb.build());
+                      }
+                  } catch (Exception e) { Log.w(TAG, "pushSession: " + e); }
+              }
+
+              private int piFlags() {
+                  return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_IMMUTABLE : 0;
+              }
+
+              private void goForeground() {
+                  try {
+                      Notification n = buildNotification();
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                          startForeground(NOTIF_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+                      } else {
+                          startForeground(NOTIF_ID, n);
+                      }
+                  } catch (Exception e) { Log.w(TAG, "goForeground: " + e); }
+              }
+
+              private void updateNotification() {
+                  if (nm == null) return;
+                  try { nm.notify(NOTIF_ID, buildNotification()); } catch (Exception ignored) {}
+              }
+
+              private Notification buildNotification() {
+                  Context c = getApplicationContext();
+                  String t = (title == null || title.isEmpty()) ? "YouTube" : title;
+                  String a = (artist == null || artist.isEmpty()) ? "Loading" : artist;
+
+                  Notification.Builder b = new Notification.Builder(c);
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) b.setChannelId(CHANNEL_ID);
+                  b.setContentTitle(t);
+                  b.setContentText(a);
+                  b.setSmallIcon(playing ? android.R.drawable.ic_media_play : android.R.drawable.ic_media_pause);
+                  b.setOngoing(true);
+                  b.setVisibility(Notification.VISIBILITY_PUBLIC);
+                  b.setWhen(0);
+                  b.setPriority(Notification.PRIORITY_MAX);
+                  if (artBitmap != null) b.setLargeIcon(artBitmap);
+
+                  Intent open = new Intent(c, YtPlayerActivity.class);
+                  open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                  b.setContentIntent(PendingIntent.getActivity(c, 0, open, piFlags()));
+
+                  b.addAction(android.R.drawable.ic_media_previous, "Previous", null);
+                  b.addAction(playing ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
+                      playing ? "Pause" : "Play", null);
+                  b.addAction(android.R.drawable.ic_media_next, "Next", null);
+                  b.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", null);
+
+                  b.setStyle(new Notification.MediaStyle()
+                      .setMediaSession(session == null ? null : session.getSessionToken())
+                      .setShowActionsInCompactView(0, 1, 2));
+
+                  return b.build();
+              }
+
+              private void fetchArt(final String url) {
+                  new Thread(new Runnable() {
+                      public void run() {
+                          Bitmap bmp = null;
+                          HttpURLConnection conn = null;
+                          try {
+                              conn = (HttpURLConnection) new URL(url).openConnection();
+                              conn.setConnectTimeout(6000);
+                              conn.setReadTimeout(6000);
+                              conn.setInstanceFollowRedirects(true);
+                              InputStream in = conn.getInputStream();
+                              bmp = BitmapFactory.decodeStream(in);
+                              in.close();
+                          } catch (Exception ignored) {
+                          } finally {
+                              if (conn != null) try { conn.disconnect(); } catch (Exception ignored) {}
+                          }
+                          if (bmp == null) return;
+                          final Bitmap fb = bmp;
+                          main.post(new Runnable() {
+                              public void run() {
+                                  artBitmap = fb;
+                                  updateNotification();
+                                  pushSession();
+                              }
+                          });
+                      }
+                  }).start();
+              }
+
+              public void play() {
+                  runOnUiThread(new Runnable() {
+                      public void run() { requestFocus(); sendCmd("play", 0); }
+                  });
+              }
+
+              public void pause() {
+                  runOnUiThread(new Runnable() {
+                      public void run() { sendCmd("pause", 0); }
+                  });
+              }
+
+              public void seekTo(long sec) {
+                  runOnUiThread(new Runnable() {
+                      public void run() { sendCmd("seek", (double) sec); }
+                  });
+              }
+
+              static void attach(WebView wv, MutableContextWrapper ctx, android.view.ViewGroup target) {
+                  if (ctx != null) ctx.setBaseContext(target.getContext());
+                  if (wv != null && wv.getParent() != null) {
+                      ((android.view.ViewGroup) wv.getParent()).removeView(wv);
+                  }
+                  if (wv != null && target != null) {
+                      target.addView(wv, new android.view.ViewGroup.LayoutParams(
+                          android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                          android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+                  }
+              }
+
+              static void detach(WebView wv, MutableContextWrapper ctx, Context appContext) {
+                  try {
+                      if (wv != null && wv.getParent() instanceof android.view.ViewGroup) {
+                          ((android.view.ViewGroup) wv.getParent()).removeView(wv);
+                      }
+                  } catch (Exception ignored) {}
+                  if (ctx != null && appContext != null) {
+                      try { ctx.setBaseContext(appContext); } catch (Exception ignored) {}
+                  }
+              }
+          }
+          YTBGR_SVC_EOF
+
+          cat > plugins/yt-bgr/android/src/main/java/com/ashs/ytbgr/YtPlayerActivity.java <<'YTBGR_ACT_EOF'
+          package com.ashs.ytbgr;
+
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.os.Bundle;
+          import android.webkit.WebView;
+          import android.widget.Button;
+          import android.widget.FrameLayout;
+
+          public class YtPlayerActivity extends Activity {
+
+              private FrameLayout container;
+              private boolean attached = false;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(R.layout.activity_yt_player);
+
+                  container = findViewById(R.id.ytContainer);
+                  Button close = findViewById(R.id.ytClose);
+                  if (close != null) {
+                      close.setOnClickListener(new android.view.View.OnClickListener() {
+                          public void onClick(android.view.View v) { finish(); }
+                      });
+                  }
+
+                  if (YtWebViewService.sWebView == null) {
+                      String url = null;
+                      try { url = getIntent().getStringExtra("url"); } catch (Exception ignored) {}
+                      if (url == null) url = YtWebViewService.sLastUrl;
+                      YtWebViewService.open(getApplicationContext(),
+                          url != null ? url : YtWebViewService.DEFAULT_URL, false);
+                  }
+              }
+
+              @Override
+              protected void onResume() {
+                  super.onResume();
+                  attachWebView();
+              }
+
+              @Override
+              protected void onPause() {
+                  detachWebView();
+                  super.onPause();
+              }
+
+              @Override
+              protected void onDestroy() {
+                  detachWebView();
+                  super.onDestroy();
+              }
+
+              private void attachWebView() {
+                  if (attached) return;
+                  WebView wv = YtWebViewService.sWebView;
+                  if (wv == null || container == null) return;
+                  try {
+                      YtWebViewService.attach(wv, YtWebViewService.sContextWrapper, container);
+                      attached = true;
+                  } catch (Exception e) {
+                      attached = false;
+                  }
+              }
+
+              private void detachWebView() {
+                  if (!attached) return;
+                  try {
+                      YtWebViewService.detach(YtWebViewService.sWebView,
+                          YtWebViewService.sContextWrapper, getApplicationContext());
+                  } catch (Exception ignored) {}
+                  attached = false;
+              }
+
+              @Override
+              public void onBackPressed() {
+                  WebView wv = YtWebViewService.sWebView;
+                  try {
+                      if (wv != null && wv.canGoBack()) { wv.goBack(); return; }
+                  } catch (Exception ignored) {}
+                  super.onBackPressed();
+              }
+          }
+          YTBGR_ACT_EOF
+
+          cat > plugins/yt-bgr/android/src/main/java/com/ashs/ytbgr/YtBgrPlugin.java <<'YTBGR_PLG_EOF'
+          package com.ashs.ytbgr;
+
+          import android.Manifest;
+          import android.content.Intent;
+          import android.os.Build;
+
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+          import com.getcapacitor.annotation.Permission;
+          import com.getcapacitor.annotation.PermissionCallback;
+
+          @CapacitorPlugin(
+              name = "YtBgr",
+              permissions = {
+                  @Permission(strings = { Manifest.permission.POST_NOTIFICATIONS }, alias = YtBgrPlugin.ALIAS_NOTIF)
+              }
+          )
+          public class YtBgrPlugin extends Plugin {
+
+              static final String ALIAS_NOTIF = "ytNotif";
+
+              @Override
+              public void load() {
+                  YtWebViewService.sPlugin = new java.lang.ref.WeakReference<YtBgrPlugin>(this);
+              }
+
+              @PluginMethod
+              public void open(PluginCall call) {
+                  String url = call.getString("url");
+                  Boolean desktop = call.getBoolean("desktopUa", false);
+                  final String u = (url == null || url.isEmpty()) ? YtWebViewService.DEFAULT_URL : url;
+                  final boolean du = desktop != null && desktop;
+
+                  if (Build.VERSION.SDK_INT >= 33 && !hasNotifPermission()) {
+                      try {
+                          requestPermissionForAlias(ALIAS_NOTIF, call, "notifPermsCallback");
+                          return;
+                      } catch (Exception ignored) {}
+                  }
+                  start(call, u, du);
+              }
+
+              @PermissionCallback
+              private void notifPermsCallback(PluginCall call) {
+                  String url = call.getString("url");
+                  Boolean desktop = call.getBoolean("desktopUa", false);
+                  String u = (url == null || url.isEmpty()) ? YtWebViewService.DEFAULT_URL : url;
+                  start(call, u, desktop != null && desktop);
+              }
+
+              private void start(PluginCall call, String url, boolean desktopUa) {
+                  try {
+                      YtWebViewService.sPlugin = new java.lang.ref.WeakReference<YtBgrPlugin>(this);
+                      YtWebViewService.open(getContext(), url, desktopUa);
+
+                      Intent i = new Intent(getContext(), YtPlayerActivity.class);
+                      i.putExtra("url", url);
+                      i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      getContext().startActivity(i);
+
+                      call.resolve(new JSObject().put("opened", true).put("url", url));
+                  } catch (Exception e) {
+                      call.reject("Could not start: " + e.getMessage());
+                  }
+              }
+
+              @PluginMethod
+              public void close(PluginCall call) {
+                  try {
+                      YtWebViewService.stop(getContext());
+                      call.resolve(new JSObject().put("closed", true));
+                  } catch (Exception e) {
+                      call.reject("Close failed: " + e.getMessage());
+                  }
+              }
+
+              @PluginMethod
+              public void play(PluginCall call) {
+                  YtWebViewService.cmd("play", 0);
+                  call.resolve();
+              }
+
+              @PluginMethod
+              public void pause(PluginCall call) {
+                  YtWebViewService.cmd("pause", 0);
+                  call.resolve();
+              }
+
+              @PluginMethod
+              public void seekTo(PluginCall call) {
+                  Integer sec = call.getInt("sec");
+                  if (sec == null || sec < 0) { call.reject("sec required"); return; }
+                  YtWebViewService.cmd("seek", sec);
+                  call.resolve();
+              }
+
+              @PluginMethod
+              public void loadUrl(PluginCall call) {
+                  String url = call.getString("url");
+                  if (url == null || url.isEmpty()) { call.reject("url required"); return; }
+                  YtWebViewService.load(url);
+                  call.resolve();
+              }
+
+              @PluginMethod
+              public void isActive(PluginCall call) {
+                  call.resolve(new JSObject().put("active", YtWebViewService.sRunning));
+              }
+
+              private boolean hasNotifPermission() {
+                  try {
+                      if (Build.VERSION.SDK_INT < 33) return true;
+                      return getContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                          == android.content.pm.PackageManager.PERMISSION_GRANTED;
+                  } catch (Exception e) {
+                      return true;
+                  }
+              }
+          }
+          YTBGR_PLG_EOF
+
+          cat > plugins/yt-bgr/dist/esm/index.js <<'YTBGR_ESM_EOF'
+          import { registerPlugin } from '@capacitor/core';
+          export const YtBgr = registerPlugin('YtBgr');
+          YTBGR_ESM_EOF
+
+          cat > plugins/yt-bgr/dist/plugin.cjs.js <<'YTBGR_CJS_EOF'
+          var core = require('@capacitor/core');
+          var YtBgr = core.registerPlugin('YtBgr');
+          module.exports = { YtBgr: YtBgr };
+          YTBGR_CJS_EOF
+
+          cat > plugins/yt-bgr/dist/esm/index.d.ts <<'YTBGR_DTS_EOF'
+          import { registerPlugin } from '@capacitor/core';
+
+          export interface YtOpenOptions { url?: string; desktopUa?: boolean; }
+          export interface YtStateEvent {
+            state: 'idle' | 'playing' | 'paused' | 'buffering' | 'ended';
+            position: number;
+            duration: number;
+          }
+          export interface YtMetaEvent { title: string; artist: string; artwork: string; videoId: string; }
+          export interface YtErrorEvent { reason: string; }
+          export interface YtListenerHandle { remove(): Promise<void>; }
+
+          export interface YtBgrPlugin {
+            open(options?: YtOpenOptions): Promise<void>;
+            close(): Promise<void>;
+            play(): Promise<void>;
+            pause(): Promise<void>;
+            seekTo(options: { sec: number }): Promise<void>;
+            loadUrl(options: { url: string }): Promise<void>;
+            isActive(): Promise<{ active: boolean }>;
+            addListener(cb: 'ytState', fn: (e: YtStateEvent) => void): Promise<YtListenerHandle>;
+            addListener(cb: 'ytMeta', fn: (e: YtMetaEvent) => void): Promise<YtListenerHandle>;
+            addListener(cb: 'ytError', fn: (e: YtErrorEvent) => void): Promise<YtListenerHandle>;
+            removeAllListeners(): Promise<void>;
+          }
+
+          export declare const YtBgr: YtBgrPlugin;
+          YTBGR_DTS_EOF
+
+          # Make sure package.json references the generated plugin
+          node -e "
+            const fs=require('fs');
+            const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+            p.dependencies = p.dependencies || {};
+            p.dependencies['ashs-yt-bgr'] = 'file:plugins/yt-bgr';
+            fs.writeFileSync('package.json', JSON.stringify(p,null,2));
+            console.log('yt-bgr dependency registered');
+          "
+          echo "yt-bgr source generated"
+
+      - name: Re-install (picks up the generated plugin)
+        run: |
+          npm install --no-audit --no-fund
+
       - name: Stage web assets (keeps node_modules OUT of the APK)
         run: |
           mkdir -p www
-          cp index.html styles.css app.js manifest.json sw.js icon.svg icon-192.png icon-512.png www/
+          cp index.html styles.css app.js ytbgr.js online.js manifest.json sw.js icon.svg icon-192.png icon-512.png www/
+          mkdir -p www/providers
+          cp providers/types.js providers/config.js providers/searchCache.js providers/youtube.js providers/audius.js providers/archive.js providers/index.js providers/player.js www/providers/
           cp .nojekyll www/ 2>/dev/null || true
 
       - name: Add + sync Android platform
