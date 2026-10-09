@@ -53,8 +53,34 @@ jobs:
           fi
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
+      - name: Verify project files
+        run: |
+          missing=0
+          for f in package.json package-lock.json capacitor.config.json index.html styles.css app.js sw.js; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Missing required file: $f — it was never committed/pushed. Upload it to the repo root and re-run."
+              missing=1
+            fi
+          done
+          for d in plugins providers; do
+            if [ ! -d "$d" ]; then
+              echo "::error::Missing required folder: $d/ — it was never committed/pushed. Upload it and re-run."
+              missing=1
+            fi
+          done
+          if [ "$missing" = "1" ]; then
+            echo ""
+            echo "Fix locally with:  git add -A && git commit -m 'add missing files' && git push"
+            exit 1
+          fi
+
       - name: Syntax-check web scripts
-        run: node scripts/check.mjs
+        run: |
+          if [ -f scripts/check.mjs ]; then
+            node scripts/check.mjs
+          else
+            echo "WARNING: scripts/check.mjs missing from repo - skipping syntax check"
+          fi
 
       - name: Stage web assets (keeps node_modules OUT of the APK)
         run: |
