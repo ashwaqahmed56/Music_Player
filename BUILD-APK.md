@@ -22,7 +22,7 @@ So updates install seamlessly + Play Store accepts it:
 1. Repo → Settings → Secrets and variables → Actions → New secret:
    - `KEYSTORE_B64` = base64 of your `signing.keystore`
      (`certutil -encode signing.keystore tmp.txt` on Windows, paste content)
-   - `KEY_ALIAS` = `my-key-alias`, `KEYSTORE_PASS` and `KEY_PASS` = `Ngy1Wts7Z6Ml`
+   - `KEY_ALIAS` = `my-key-alias`, `KEYSTORE_PASS` and `KEY_PASS` = the passwords you chose when creating the keystore
      (from your `signing-key-info.txt` — or your own values)
 2. In `.github/workflows/android.yml`, change `assembleDebug` → `assembleRelease`
    and add a signing step using those secrets (standard `gradle` signing config),

@@ -1,9 +1,12 @@
 {
   "name": "ashs-player",
-  "version": "4.6.0",
+  "version": "4.8.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "sync": "npx cap sync android"
+    "sync": "npx cap sync android",
+    "serve": "python -m http.server 8000",
+    "check": "node scripts/check.mjs"
   },
   "dependencies": {
     "@capawesome/capacitor-file-picker": "^6.0.0",
@@ -12,12 +15,14 @@
     "@capacitor/filesystem": "^6.0.0",
     "@capacitor/local-notifications": "^6.0.0",
     "capacitor-music-controls-plugin": "file:plugins/music-controls",
-    "ashs-media-library": "file:plugins/media-library",
-    "ashs-yt-bgr": "file:plugins/yt-bgr"
+    "ashs-media-library": "file:plugins/media-library"
   },
   "devDependencies": {
     "@capacitor/android": "^6.0.0",
     "@capacitor/assets": "^3.0.0",
     "@capacitor/cli": "^6.0.0"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true
   }
 }

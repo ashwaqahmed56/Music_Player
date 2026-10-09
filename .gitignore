@@ -1,0 +1,21 @@
+node_modules/
+www/
+android/
+ios/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+.env
+.env.*
+
+# Build outputs and signing material - NEVER upload these to GitHub
+*.apk
+*.aab
+*.keystore
+*.jks
+*.p12
+*.pem
+signing-key-info.txt
+*package.zip

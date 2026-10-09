@@ -4,24 +4,24 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Ash's Player</title>
-<meta name="description" content="Ash's Player - warm, simple offline music player" />
-<meta name="theme-color" content="#1e120b" />
+<meta name="description" content="Ash's Player - futuristic offline music player" />
+<meta name="theme-color" content="#04060f" />
 <meta name="color-scheme" content="dark light" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
 <body>
 <div id="dropOverlay" class="drop-overlay hidden"><div class="drop-box"><svg class="ic xl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><h2>Drop music here</h2><p>MP3 · WAV · OGG · M4A · FLAC</p></div></div>
 
 <div class="phone">
   <header class="appbar">
-    <div class="brand"><span class="brand-disc" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#3a2317" stroke="#ff6b35" stroke-width="2.5"/><circle class="bd-spin" cx="24" cy="24" r="20" fill="none" stroke="#ffc53d" stroke-width="2" stroke-dasharray="5 9" opacity=".9"/><g class="bd-bars" stroke="#ffc53d" stroke-width="2.6" stroke-linecap="round"><line x1="18" y1="27" x2="18" y2="21"/><line x1="24" y1="27" x2="24" y2="18"/><line x1="30" y1="27" x2="30" y2="22"/></g><circle cx="24" cy="24" r="3.2" fill="#fff3e2"/></svg></span><div class="brand-txt"><b>Ash's Player</b><span id="statLine">Your music</span></div></div>
+    <div class="brand"><span class="brand-disc" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#080b1a" stroke="#22e6ff" stroke-width="2.5"/><circle class="bd-spin" cx="24" cy="24" r="20" fill="none" stroke="#a06bff" stroke-width="2" stroke-dasharray="5 9" opacity=".9"/><g class="bd-bars" stroke="#22e6ff" stroke-width="2.6" stroke-linecap="round"><line x1="18" y1="27" x2="18" y2="21"/><line x1="24" y1="27" x2="24" y2="18"/><line x1="30" y1="27" x2="30" y2="22"/></g><circle cx="24" cy="24" r="3.2" fill="#22e6ff"/></svg></span><div class="brand-txt"><b>Ash's Player</b><span id="statLine">Your music</span></div></div>
     <div class="row-btns"><button class="icon-btn themeToggle" title="Theme" aria-label="Theme"></button><button id="homeSettings" class="icon-btn" title="Settings" aria-label="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
   </header>
 
@@ -73,26 +73,17 @@
 
     
     <section id="screen-online" class="screen">
-      <div class="page-head"><div><p class="kicker">Stream free</p><h1>Online</h1><p class="sub" id="onlineMeta">Full songs · no previews</p></div><div class="row-btns"><button id="onlineTrend" class="btn tonal sm">Trending</button><button id="onlineGo" class="btn solid sm">Search</button></div></div>
+      <div class="page-head"><div><p class="kicker">Stream free</p><h1>Online</h1><p class="sub" id="onlineMeta">Full songs · audio only</p></div><div class="row-btns"><button id="onlineTrend" class="btn tonal sm">Trending</button><button id="onlineGo" class="btn solid sm">Search</button></div></div>
       <div class="chips" id="onlineSrcRow"></div>
-      <button class="btn tonal sm" data-ytbgr-open data-ytbgr-url="https://www.youtube.com" id="ytbgrOpen" style="width:100%;margin-bottom:10px">Open YouTube — full site in-app, plays in background</button>
+
+      <div class="so-head">Endless radio — free, never stops</div>
+      <div id="radioRow" class="chips"></div>
+
       <label class="search-field sm"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="onlineSearch" placeholder="Search any song or artist..." autocomplete="off" /><button id="clearOnlineSearch" class="hidden" aria-label="Clear">✕</button></label>
       <p id="onlineStatus" class="muted center" style="font-size:13px"></p>
 
-      <!-- Official IFrame player. YouTube's own chrome stays visible; the stage
-           is only shown while an iframe track is playing. -->
-      <div id="onlineStage" class="hidden" style="margin-bottom:12px">
-        <div class="so-head">Now playing via YouTube</div>
-        <div id="ytStage" style="position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:18px;overflow:hidden;border:1.5px solid var(--line)"><div id="ytFrame"></div></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn tonal sm" id="ytPrev">Previous</button>
-          <button class="btn tonal sm" id="ytNext">Next</button>
-          <button class="btn tonal sm" id="ytBg">Play in background</button>
-        </div>
-      </div>
-
       <div id="onlineList" class="v-list"></div>
-      <p class="muted center" style="font-size:12px">Audius + Internet Archive stream directly and can be saved offline. YouTube plays in Google's own player. Needs internet.</p>
+      <p class="muted center" style="font-size:12px">Audius and Internet Archive stream audio directly through your player — no video, no YouTube. Audius tracks can be saved offline.</p>
       <div style="height:14px"></div>
     </section>
 
@@ -199,7 +190,6 @@
 <audio id="audio" preload="auto"></audio>
 
 <script src="app.js"></script>
-<script src="ytbgr.js"></script>
 <script type="module" src="online.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
