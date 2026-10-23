@@ -1,34 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1a241c"/>
-      <stop offset="1" stop-color="#0b100c"/>
-    </linearGradient>
-    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#26332a"/>
-      <stop offset="1" stop-color="#10160f"/>
-    </linearGradient>
-    <radialGradient id="lbl" cx="0.5" cy="0.38" r="0.75">
-      <stop offset="0" stop-color="#ffd97a"/>
-      <stop offset="1" stop-color="#d98f1f"/>
+    <radialGradient id="bg" cx="0.5" cy="0.42" r="0.85">
+      <stop offset="0" stop-color="#1c2f52"/>
+      <stop offset="1" stop-color="#081120"/>
     </radialGradient>
-    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="16"/>
-    </filter>
-    <clipPath id="disc"><circle cx="256" cy="248" r="148"/></clipPath>
+    <linearGradient id="st" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ccd7e9"/>
+    </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#tile)"/>
-  <ellipse cx="256" cy="418" rx="150" ry="26" fill="#000000" opacity=".55" filter="url(#soft)"/>
-  <ellipse cx="256" cy="262" rx="150" ry="146" fill="#050705"/>
-  <circle cx="256" cy="248" r="148" fill="url(#face)" stroke="#dce6c8" stroke-opacity=".22" stroke-width="3"/>
-  <circle cx="256" cy="248" r="126" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2"/>
-  <circle cx="256" cy="248" r="104" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2"/>
-  <circle cx="256" cy="248" r="82" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2"/>
-  <circle cx="256" cy="248" r="56" fill="url(#lbl)"/>
-  <circle cx="256" cy="248" r="56" fill="none" stroke="#7a4d0d" stroke-opacity=".6" stroke-width="2"/>
-  <circle cx="256" cy="248" r="14" fill="#0b100c" stroke="#ffe9c4" stroke-opacity=".7" stroke-width="2"/>
-  <g clip-path="url(#disc)">
-    <rect x="120" y="40" width="70" height="420" rx="35" fill="#ffffff" opacity=".10" transform="rotate(18 256 248)"/>
-  </g>
-  <ellipse cx="180" cy="110" rx="120" ry="50" fill="#ffffff" opacity=".06"/>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="370" fill="none" stroke="url(#st)" stroke-width="54"/>
+  <path d="M214 668 C262 616 292 582 322 596 C366 616 374 662 402 662 C452 662 452 534 512 534 C572 534 572 662 622 662 C650 662 658 616 702 596 C732 582 762 616 810 668"
+        fill="none" stroke="url(#st)" stroke-width="44" stroke-linecap="round"/>
+  <path d="M352 764 L512 276 L672 764" fill="none" stroke="#0f1a2c" stroke-width="96" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M352 764 L512 276 L672 764" fill="none" stroke="url(#st)" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

@@ -1,4 +1,4 @@
-const CACHE = 'ashs-player-v19';
+const CACHE = 'ashs-player-v20';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -10,7 +10,7 @@ self.addEventListener('activate', (e) => {
 });
 // Endpoints that must never be served from cache: streams and the lyrics
 // library go stale (or are infinite) when cached.
-const NEVER_CACHE = ['soundhelix', 'lrclib'];
+const NEVER_CACHE = ['soundhelix', 'lrclib', 'musicbrainz', 'coverartarchive'];
 // CDNs the app needs for offline tag reading; safe to cache-first.
 const CACHE_FIRST = ['cdnjs', 'fonts.gstatic', 'fonts.googleapis'];
 self.addEventListener('fetch', (e) => {
