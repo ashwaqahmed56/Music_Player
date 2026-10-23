@@ -15,6 +15,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import com.getcapacitor.PermissionState;
 import android.content.ContentResolver;
 import android.content.Intent;
 import java.io.File;
@@ -56,7 +57,7 @@ public class MediaLibraryPlugin extends Plugin {
             ContentResolver resolver = getContext().getContentResolver();
             int n = resolver.delete(Uri.parse(uri), null, null);
             call.resolve(new JSObject().put("deleted", n > 0));
-        } catch (SecurityException se) {
+            } catch (SecurityException se) {
             try {
                 Intent intent = new Intent(Intent.ACTION_DELETE, Uri.parse(uri));
                 if (getActivity() != null) {
@@ -65,7 +66,8 @@ public class MediaLibraryPlugin extends Plugin {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     getContext().startActivity(intent);
                 }
-                call.resolve(new JSObject().put("deleted", true));
+                // The user may still cancel the system confirmation sheet.
+                call.resolve(new JSObject().put("deleted", false).put("confirmationShown", true));
             } catch (Exception e2) { call.reject("Delete failed: " + e2.getMessage()); }
         } catch (Exception e) { call.reject("Delete failed: " + e.getMessage()); }
     }
@@ -73,6 +75,11 @@ public class MediaLibraryPlugin extends Plugin {
     @PermissionCallback
     private void audioPermsCallback(PluginCall call) {
         try {
+            // requestPermissionForAlias fires even when the user denied it; honor that.
+            if (getPermissionState(audioAlias()) != PermissionState.GRANTED) {
+                call.reject("Permission denied");
+                return;
+            }
             sendAudio(call);
         } catch (SecurityException se) {
             call.reject("Permission denied");

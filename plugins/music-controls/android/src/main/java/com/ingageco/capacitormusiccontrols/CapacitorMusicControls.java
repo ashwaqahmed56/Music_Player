@@ -9,7 +9,6 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
@@ -38,12 +37,6 @@ import android.media.AudioManager;
 import org.json.JSONArray;
 import org.json.JSONException;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
 @CapacitorPlugin(name="CapacitorMusicControls")
 public class CapacitorMusicControls extends Plugin {
@@ -146,9 +139,10 @@ public class CapacitorMusicControls extends Plugin {
 	}
 
 	public void unregisterMediaButtonEvent(){
+		// Only detach the receiver. Never release the session here: the notification
+		// and lock-screen controls keep using its token until destroy().
 		if (this.mediaSessionCompat != null) {
 			this.mediaSessionCompat.setMediaButtonReceiver(null);
-			this.mediaSessionCompat.release();
 		}
 	}
 
@@ -331,7 +325,9 @@ public class CapacitorMusicControls extends Plugin {
 			long durMs = 0;
 			try { elMs = params.optLong("elapsed", 0); } catch (Exception ignored) {}
 			try { durMs = params.optLong("duration", 0); } catch (Exception ignored) {}
-			this.notification.updateIsPlaying(isPlaying);
+			if (this.notification != null) {
+				this.notification.updateElapsed(isPlaying, elMs, durMs);
+			}
 
 			if(isPlaying)
 				setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING, elMs, durMs);
@@ -343,6 +339,7 @@ public class CapacitorMusicControls extends Plugin {
 			call.reject("error updateElapsed: "+e.toString());
 		} catch (NullPointerException e) {
 			e.printStackTrace();
+			call.resolve();
 		}
 
 	}
@@ -352,6 +349,7 @@ public class CapacitorMusicControls extends Plugin {
 		JSObject params = call.getData();
 		// final JSONObject params = args.getJSONObject(0);
 		try{
+			if (this.notification == null) { call.resolve(); return; }
 			final boolean dismissable = params.getBoolean("dismissable");
 			this.notification.updateDismissable(dismissable);
 		call.resolve();
@@ -394,60 +392,8 @@ public class CapacitorMusicControls extends Plugin {
 		}
 	}
 
-	// Get image from url
+	// Get image from url (shared with the notification so each cover downloads once)
 	private Bitmap getBitmapCover(String coverURL){
-		try{
-			if(coverURL.matches("^(https?|ftp)://.*$"))
-				// Remote image
-				return this.getBitmapFromURL(coverURL);
-			else {
-				// Local image
-				return this.getBitmapFromLocal(coverURL);
-			}
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			return null;
-		}
-	}
-
-	// get Local image
-	private Bitmap getBitmapFromLocal(String localURL){
-		try {
-			Uri uri = Uri.parse(localURL);
-			File file = new File(uri.getPath());
-			FileInputStream fileStream = new FileInputStream(file);
-			BufferedInputStream buf = new BufferedInputStream(fileStream);
-			Bitmap myBitmap = BitmapFactory.decodeStream(buf);
-			buf.close();
-			return myBitmap;
-		} catch (Exception ex) {
-			try {
-				InputStream fileStream = getActivity().getAssets().open("public/" + localURL);
-				BufferedInputStream buf = new BufferedInputStream(fileStream);
-				Bitmap myBitmap = BitmapFactory.decodeStream(buf);
-				buf.close();
-				return myBitmap;
-			} catch (Exception ex2) {
-				ex.printStackTrace();
-				ex2.printStackTrace();
-				return null;
-			}
-		}
-	}
-
-	// get Remote image
-	private Bitmap getBitmapFromURL(String strURL) {
-		try {
-			URL url = new URL(strURL);
-			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-			connection.setDoInput(true);
-			connection.connect();
-			InputStream input = connection.getInputStream();
-			Bitmap myBitmap = BitmapFactory.decodeStream(input);
-			return myBitmap;
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			return null;
-		}
+		return CoverCache.load(getActivity().getApplicationContext(), coverURL);
 	}
 }

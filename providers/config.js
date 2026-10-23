@@ -21,9 +21,17 @@ export const CONFIG = {
   JAMENDO_CLIENT_ID: '',      // ← optional free Jamendo client_id
 
   // Feature flags
-  ENABLE_YOUTUBE: true,
+  // YouTube is OFF by default: it can only be played as a video in Google's own
+  // embed, and this app is audio-only. Turn it on only if you want the IFrame
+  // video player back (providers/player.js still supports it).
+  ENABLE_YOUTUBE: false,
   ENABLE_AUDIUS: true,
   ENABLE_ARCHIVE: true,
+  // Jamendo needs a free client_id (see the header comment) to switch itself on.
+  ENABLE_JAMENDO: true,
+  ENABLE_CCMIXTER: true,
+  // Endless Creative-Commons radio — no key, no catalogue, never runs out.
+  ENABLE_RADIO: true,
 
   // Keyless YouTube search fallback. Unreliable and NOT Play Store safe -
   // never a hard dependency, used only when no API key is configured.
@@ -48,17 +56,24 @@ export const CONFIG = {
   REQUEST_TIMEOUT_MS: 12000,
 
   // Provider order in merged results
-  ORDER: ['youtube', 'audius', 'archive'],
+  ORDER: ['archive', 'jamendo', 'ccmixter', 'audius', 'youtube'],
 
   // Labels shown on each row
   BADGES: {
     youtube: 'YouTube',
     audius: 'Audius',
     archive: 'Archive',
+    jamendo: 'Jamendo',
+    ccmixter: 'ccMixter',
+    radio: 'Radio',
     invidious: 'YouTube'
   }
 };
 
 export function hasYouTubeKey() {
   return typeof CONFIG.YOUTUBE_API_KEY === 'string' && CONFIG.YOUTUBE_API_KEY.trim().length > 20;
+}
+
+export function hasJamendoKey() {
+  return typeof CONFIG.JAMENDO_CLIENT_ID === 'string' && CONFIG.JAMENDO_CLIENT_ID.trim().length > 10;
 }

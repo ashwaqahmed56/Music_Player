@@ -8,16 +8,21 @@ import { CONFIG } from './config.js';
 import { YouTubeProvider } from './youtube.js';
 import { AudiusProvider } from './audius.js';
 import { ArchiveProvider } from './archive.js';
+import { JamendoProvider } from './jamendo.js';
+import { CcMixterProvider } from './ccmixter.js';
+import { RadioProvider } from './radio.js';
 import { dedupeKey } from './types.js';
 import { cancelAll } from './searchCache.js';
 
 const REGISTRY = {
-  youtube: YouTubeProvider,
+  archive: ArchiveProvider,
+  jamendo: JamendoProvider,
+  ccmixter: CcMixterProvider,
   audius: AudiusProvider,
-  archive: ArchiveProvider
+  youtube: YouTubeProvider
 };
 
-export { YouTubeProvider, AudiusProvider, ArchiveProvider };
+export { YouTubeProvider, AudiusProvider, ArchiveProvider, JamendoProvider, CcMixterProvider, RadioProvider };
 export { CONFIG } from './config.js';
 
 let quotaWarned = false;

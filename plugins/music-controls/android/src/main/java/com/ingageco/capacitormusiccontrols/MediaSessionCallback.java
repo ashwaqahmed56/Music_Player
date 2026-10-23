@@ -76,6 +76,9 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
 
   @Override
   public boolean onMediaButtonEvent(Intent mediaButtonIntent) {
+    if (mediaButtonIntent == null || mediaButtonIntent.getExtras() == null) {
+      return super.onMediaButtonEvent(mediaButtonIntent);
+    }
     final KeyEvent event = (KeyEvent) mediaButtonIntent.getExtras().get(Intent.EXTRA_KEY_EVENT);
     JSObject ret = new JSObject();
 

@@ -117,12 +117,7 @@ export const AudiusProvider = {
    */
   async resolve(t) {
     await bootstrap();
-    for (const host of [...hosts]) {
-      try {
-        const u = host + '/v1/tracks/' + encodeURIComponent(t.id) + '/stream?app_name=' + CONFIG.AUDIUS_APP_NAME;
-        return u;   // the <audio> element follows the 302 itself
-      } catch (e) { rotate(host); }
-    }
-    throw new Error('No Audius host available');
+    const host = hosts[0] || 'https://discoveryprovider.audius.co';
+    return host + '/v1/tracks/' + encodeURIComponent(t.id) + '/stream?app_name=' + CONFIG.AUDIUS_APP_NAME;
   }
 };

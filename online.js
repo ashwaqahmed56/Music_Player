@@ -71,14 +71,39 @@ function paintResults() {
 }
 
 function paintNow(s) {
+  const on = !!(s && s.current);
+  try { document.body.classList.toggle('ext-playing', !!(on && s.ytState === 'playing')); } catch (e) {}
   // Cosmetic mirror while the IFrame player owns the session.
   const title = document.getElementById('plTitle');
   const artist = document.getElementById('plArtist');
   if (s && s.current) {
     if (title) title.textContent = s.current.title;
-    if (artist) artist.textContent = s.current.artist;
+    if (artist) artist.textContent = (s.current.artist || 'YouTube') + ' · Streaming';
   }
+  // Mirror the session into the persistent mini bar so the whole app agrees
+  // on what is playing while a stream owns the audio path.
+  const mt = document.getElementById('miniTitle');
+  const ma = document.getElementById('miniArtist');
+  const mc = document.getElementById('miniCover');
+  const mp2 = document.getElementById('miniProg');
+  if (on) {
+    if (mt) mt.textContent = s.current.title || 'Streaming';
+    if (ma) ma.textContent = (s.current.artist || 'Online') + ' · Streaming';
+    if (mc) {
+      if (s.current.artworkUrl) { mc.innerHTML = '<img src="' + escapeHtml(s.current.artworkUrl) + '" alt="" loading="lazy" decoding="async"/>'; mc.style.cssText = ''; }
+      else {
+        const tt = String(s.current.title || '?');
+        const hue = ((tt + (s.current.artist || '')).split('').reduce((h2, c) => (h2 * 31 + c.charCodeAt(0)) % 360, 0));
+        mc.innerHTML = escapeHtml(tt.charAt(0).toUpperCase() || '♪');
+        mc.style.cssText = (typeof window.ASHS_ART_STYLE === 'function') ? window.ASHS_ART_STYLE({ hue }) : '';
+      }
+    }
+    if (mp2 && s.duration > 0) mp2.style.transform = 'scaleX(' + Math.min(1, Math.max(0, (s.position || 0) / s.duration)) + ')';
+  }
+  try { if (typeof window.ASHS_EXT_MIRROR === 'function') window.ASHS_EXT_MIRROR(on, s && s.current); } catch (e) {}
 }
+
+function escapeHtml(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 const fmtDur = sec => {
   sec = Math.max(0, Math.floor(sec || 0));

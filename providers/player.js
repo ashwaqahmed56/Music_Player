@@ -13,6 +13,7 @@
 
 import { ArchiveProvider } from './archive.js';
 import { CONFIG } from './config.js';
+import { makeId } from './types.js';
 
 /** @type {import('./types.js').Track[]} */
 let queue = [];
@@ -170,7 +171,7 @@ function emitError(reason) {
 
 /** Convert a provider Track into the app's track shape and pin it. */
 function toAppTrack(t) {
-  const id = t._appId || ('on_' + t.provider + '_' + t.id);
+  const id = t._appId || makeId(t);
   return {
     id,
     title: t.title,
@@ -261,12 +262,29 @@ function prev() {
   return playAt(0);
 }
 
+/** Play/pause for exterior sessions — the app's mini bar and big play button
+ *  route through avToggle() → UnifiedPlayer.toggle() while an external player
+ *  owns playback. */
+function toggle() {
+  if (owner !== 'iframe' || !ytPlayer || !ytReady) return;
+  try { if (ytState === 'playing') ytPlayer.pauseVideo(); else ytPlayer.playVideo(); } catch (e) {}
+}
+
 function stop() {
   try { if (ytPlayer && ytReady) ytPlayer.stopVideo(); } catch (e) {}
   showStage(false);
   current = null;
   owner = 'none';
   window.ASH_EXTERNAL_PLAYER = false;
+  // Tear down the app's track reference when it pointed at a discarded online track.
+  try {
+    if (typeof currentId !== 'undefined' && currentId &&
+        typeof getT === 'function' && getT(currentId) && getT(currentId).source === 'online') {
+      currentId = null;
+      try { if (window.store) store.currentId = null; } catch (e) {}
+      try { if (typeof render === 'function') render(); } catch (e) {}
+    }
+  } catch (e) {}
   emit();
 }
 
@@ -286,17 +304,10 @@ setInterval(() => {
 }, 500);
 
 export const UnifiedPlayer = {
-  play, next, prev, stop, playAt,
+  play, next, prev, stop, playAt, toggle,
   get current() { return current; },
   get queue() { return queue.slice(); },
-  get owner() { return owner; },
-  playIframeById(videoId, title, artist, artwork) {
-    return play({
-      provider: 'youtube', id: videoId, title: title || 'YouTube',
-      artist: artist || 'YouTube', artworkUrl: artwork, playableVia: 'iframe'
-    }, []);
-  },
-  clearQueue() { queue = []; index = -1; }
+  get owner() { return owner; }
 };
 
 export { CONFIG };

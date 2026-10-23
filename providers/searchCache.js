@@ -98,7 +98,7 @@ export function cancelAll() {
 function classify(e) {
   const msg = String((e && e.message) || e || '').toLowerCase();
   if (e && (e.name === 'AbortError' || /abort/.test(msg))) return 'aborted';
-  if (/quota|rateLimitExceeded|403|429/.test(msg)) return 'quota';
+  if (/quota|ratelimitexceeded|403|429/.test(msg)) return 'quota';
   if (/offline|network|failed to fetch|load failed/.test(msg)) return 'offline';
   return 'error';
 }

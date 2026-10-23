@@ -2,7 +2,7 @@
   "appId": "com.ashs.player",
   "appName": "Ash's Player",
   "webDir": "www",
-  "backgroundColor": "#0b0b10",
+  "backgroundColor": "#07080d",
   "server": {
     "androidScheme": "https"
   },

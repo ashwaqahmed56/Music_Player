@@ -1,4 +1,4 @@
-const CACHE = 'ashs-player-v12';
+const CACHE = 'ashs-player-v17';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './online.js', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png', './providers/types.js', './providers/config.js', './providers/searchCache.js', './providers/youtube.js', './providers/audius.js', './providers/archive.js', './providers/jamendo.js', './providers/ccmixter.js', './providers/radio.js', './providers/index.js', './providers/player.js'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));

@@ -26,18 +26,6 @@
  * @property {string[]} warnings
  */
 
-export const PROVIDERS = /** @type {const} */ ({
-  YOUTUBE: 'youtube',
-  AUDIUS: 'audius',
-  ARCHIVE: 'archive',
-  INVIDIOUS: 'invidious'
-});
-
-/** @param {Track} t */
-export function trackKey(t) {
-  return `${t.provider}:${t.id}`;
-}
-
 /** Normalised "title artist" used for cross-provider de-duplication. */
 export function dedupeKey(t) {
   return norm(t.title + ' ' + (t.artist || ''));

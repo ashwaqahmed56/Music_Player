@@ -36,7 +36,8 @@ public class MusicControlsBroadcastReceiver extends BroadcastReceiver {
 	@Override
 	public void onReceive(Context context, Intent intent) {
 
-		String message = intent.getAction();
+		String message = intent != null ? intent.getAction() : null;
+		if (message == null) return;
 		JSObject ret = new JSObject();
 
 		Log.i(TAG, "onReceive fired "  + message);
@@ -67,7 +68,13 @@ public class MusicControlsBroadcastReceiver extends BroadcastReceiver {
 				}
 			} else if (message.equals("music-controls-media-button")){
 				// Media button
-				KeyEvent event = (KeyEvent) intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+				Intent thatIntent = intent;
+				Bundle extras = thatIntent != null ? thatIntent.getExtras() : null;
+				KeyEvent event = extras != null ? (KeyEvent) extras.getParcelable(Intent.EXTRA_KEY_EVENT) : null;
+				if (event == null) {
+					Log.w(TAG, "media-button intent without key event; ignored");
+					return;
+				}
 				if (event.getAction() == KeyEvent.ACTION_DOWN) {
 
 					int keyCode = event.getKeyCode();

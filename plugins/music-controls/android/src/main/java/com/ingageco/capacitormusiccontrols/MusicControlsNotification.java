@@ -1,11 +1,5 @@
 package com.ingageco.capacitormusiccontrols;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.File;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
 import android.util.Log;
 import android.content.Context;
@@ -18,14 +12,16 @@ import android.content.Intent;
 import android.os.Build;
 import android.graphics.BitmapFactory;
 import android.graphics.Bitmap;
-import android.net.Uri;
 
 import android.media.session.MediaSession.Token;
 
 import android.app.NotificationChannel;
+import android.widget.RemoteViews;
 
 public class MusicControlsNotification {
 	private static final String TAG = "CMCNotification";
+	// Neon cyan — matches the in-app accent glow
+	private static final int ACCENT = 0xFF22E6FF;
 
 	private Activity cordovaActivity;
 	private NotificationManager notificationManager;
@@ -35,6 +31,8 @@ public class MusicControlsNotification {
 	private Bitmap bitmapCover;
 	private String CHANNEL_ID;
 	private Token token;
+	private long elapsedMs = 0;
+	private long durationMs = 0;
 
 
 	// Public Constructor
@@ -76,6 +74,8 @@ public class MusicControlsNotification {
 			this.getBitmapCover(newInfos.cover);
 		}
 		this.infos = newInfos;
+		this.elapsedMs = newInfos.elapsed;
+		this.durationMs = newInfos.duration;
 		this.createBuilder();
 		this.createNotification();
 	}
@@ -108,59 +108,22 @@ public class MusicControlsNotification {
 		this.createNotification();
 	}
 
-	// Get image from url
+	// Live position sync — keeps the cartoon card's progress bar
+	// in step with playback (called about once a second).
+	public void updateElapsed(boolean isPlaying, long elapsed, long duration) {
+		this.infos.isPlaying = isPlaying;
+		this.elapsedMs = elapsed;
+		this.durationMs = duration;
+		this.createBuilder();
+		this.createNotification();
+	}
+
+	// Get image from url (shared loader: one download per cover URL)
 	private void getBitmapCover(String coverURL){
 		try{
-			if(coverURL.matches("^(https?|ftp)://.*$"))
-				// Remote image
-				this.bitmapCover = getBitmapFromURL(coverURL);
-			else{
-				// Local image
-				this.bitmapCover = getBitmapFromLocal(coverURL);
-			}
+			this.bitmapCover = CoverCache.load(cordovaActivity.getApplicationContext(), coverURL);
 		} catch (Exception ex) {
 			ex.printStackTrace();
-		}
-	}
-
-	// get Local image
-	private Bitmap getBitmapFromLocal(String localURL){
-		try {
-			Uri uri = Uri.parse(localURL);
-			File file = new File(uri.getPath());
-			FileInputStream fileStream = new FileInputStream(file);
-			BufferedInputStream buf = new BufferedInputStream(fileStream);
-			Bitmap myBitmap = BitmapFactory.decodeStream(buf);
-			buf.close();
-			return myBitmap;
-		} catch (Exception ex) {
-			try {
-				InputStream fileStream = cordovaActivity.getAssets().open("public/" + localURL);
-				BufferedInputStream buf = new BufferedInputStream(fileStream);
-				Bitmap myBitmap = BitmapFactory.decodeStream(buf);
-				buf.close();
-				return myBitmap;
-			} catch (Exception ex2) {
-				ex.printStackTrace();
-				ex2.printStackTrace();
-				return null;
-			}
-		  }
-	}
-
-	// get Remote image
-	private Bitmap getBitmapFromURL(String strURL) {
-		try {
-			URL url = new URL(strURL);
-			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-			connection.setDoInput(true);
-			connection.connect();
-			InputStream input = connection.getInputStream();
-			Bitmap myBitmap = BitmapFactory.decodeStream(input);
-			return myBitmap;
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			return null;
 		}
 	}
 
@@ -180,6 +143,9 @@ public class MusicControlsNotification {
 		}
 		
 		builder.setWhen(0);
+		builder.setOnlyAlertOnce(true);
+		// Neon accent — tints action icons, ticker and progress
+		builder.setColor(ACCENT);
 
 		// set if the notification can be destroyed by swiping
 		if (this.infos.dismissable){
@@ -274,13 +240,58 @@ public class MusicControlsNotification {
 			builder.addAction(this.getResourceId(this.infos.closeIcon, android.R.drawable.ic_menu_close_clear_cancel), "", destroyPendingIntent);
 		}
 
+		// Toon-neon card: rounded gradient body, neon-framed art tile,
+		// glowing cyan→violet progress bar.
+		if (Build.VERSION.SDK_INT >= 24) {
+			try {
+				RemoteViews card = this.buildContentView(context);
+				if (card != null) {
+					builder.setCustomContentView(card);
+					builder.setCustomBigContentView(card);
+				}
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
+		}
+
 		int[] args = new int[nbControls];
 		for (int i = 0; i < nbControls; ++i) {
 			args[i] = i;
 		}
-		builder.setStyle(new Notification.MediaStyle().setShowActionsInCompactView(args).setMediaSession(this.token));
+		if (Build.VERSION.SDK_INT >= 24) {
+			builder.setStyle(new Notification.DecoratedMediaCustomViewStyle().setShowActionsInCompactView(args).setMediaSession(this.token));
+		} else {
+			builder.setStyle(new Notification.MediaStyle().setShowActionsInCompactView(args).setMediaSession(this.token));
+		}
 
 		this.notificationBuilder = builder;
+	}
+
+	private RemoteViews buildContentView(Context context){
+		// Resolved by name (same as the icon lookup) so the library R
+		// namespace never has to be hard-coded.
+		int layoutId = context.getResources().getIdentifier("ashs_notif", "layout", context.getPackageName());
+		if (layoutId == 0) return null;
+		RemoteViews view = new RemoteViews(context.getPackageName(), layoutId);
+		int titleId = context.getResources().getIdentifier("ashs_notif_title", "id", context.getPackageName());
+		int artistId = context.getResources().getIdentifier("ashs_notif_artist", "id", context.getPackageName());
+		int artId = context.getResources().getIdentifier("ashs_notif_art", "id", context.getPackageName());
+		int progId = context.getResources().getIdentifier("ashs_notif_progress", "id", context.getPackageName());
+		if (titleId != 0) view.setTextViewText(titleId, this.infos.track == null ? "" : this.infos.track);
+		if (artistId != 0) view.setTextViewText(artistId, this.infos.artist == null ? "" : this.infos.artist);
+		if (artId != 0 && this.bitmapCover != null) {
+			try { view.setImageViewBitmap(artId, this.bitmapCover); } catch (Exception ex) { ex.printStackTrace(); }
+		}
+		if (progId != 0) {
+			// 0 duration (live radio) → indeterminate spinner bar
+			boolean indeterminate = this.durationMs <= 0;
+			int progress = 0;
+			if (!indeterminate) {
+				progress = (int) Math.min(1000L, Math.max(0L, (this.elapsedMs * 1000L) / this.durationMs));
+			}
+			view.setProgressBar(progId, 1000, progress, indeterminate);
+		}
+		return view;
 	}
 
 	private int getResourceId(String name, int fallback){
