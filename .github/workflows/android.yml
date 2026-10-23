@@ -122,7 +122,7 @@ jobs:
       - name: Generate launcher icons + splash from assets/icon.png
         run: |
           if [ -f assets/icon.png ]; then
-            npx @capacitor/assets generate --android --iconBackgroundColor '#FFF3E0' --iconBackgroundColorDark '#1e120b' --splashBackgroundColor '#1e120b' --splashBackgroundColorDark '#0b100c'
+            npx @capacitor/assets generate --android --iconBackgroundColor '#0d1a30' --iconBackgroundColorDark '#0d1a30' --splashBackgroundColor '#0d1a30' --splashBackgroundColorDark '#0a1426'
           else
             echo "assets/icon.png missing - using the bundled launcher icons as-is"
           fi
