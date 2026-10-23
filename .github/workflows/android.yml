@@ -3,9 +3,8 @@ name: Build Ash's Player APK (standalone, offline)
 # Free cloud build: every push + manual runs compile a real native APK with
 # your app files bundled INSIDE (no website loading, works offline).
 #
-# The app is audio-only. The Online tab streams from Audius + Internet Archive,
-# which both serve plain audio through the normal <audio> element - so there is
-# no video, no embed player and no custom native plugin to build here.
+# The app is audio-only - no video, no embed players and no custom native
+# plugins to build here. Lyrics come from lrclib; streaming code was removed.
 on:
   workflow_dispatch:
   push:
@@ -14,8 +13,6 @@ on:
       - 'index.html'
       - 'styles.css'
       - 'app.js'
-      - 'online.js'
-      - 'providers/**'
       - 'sw.js'
       - 'manifest.json'
       - 'icon*.png'
@@ -30,6 +27,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -62,7 +61,7 @@ jobs:
               missing=1
             fi
           done
-          for d in plugins providers; do
+          for d in plugins; do
             if [ ! -d "$d" ]; then
               echo "::error::Missing required folder: $d/ — it was never committed/pushed. Upload it and re-run."
               missing=1
@@ -86,20 +85,39 @@ jobs:
         run: |
           set -e
           mkdir -p www
-          for f in index.html styles.css app.js online.js manifest.json sw.js icon.svg icon-192.png icon-512.png; do
+          for f in index.html styles.css app.js manifest.json sw.js icon.svg icon-192.png icon-512.png; do
             if [ -f "$f" ]; then cp "$f" www/; else echo "WARNING: missing $f (skipped)"; fi
           done
-          mkdir -p www/providers
-          for f in types config searchCache youtube audius archive jamendo ccmixter radio index player; do
-            if [ -f "providers/$f.js" ]; then cp "providers/$f.js" www/providers/; else echo "WARNING: missing providers/$f.js (skipped)"; fi
-          done
           cp .nojekyll www/ 2>/dev/null || true
-          echo "--- staged web assets ---" && ls -1 www www/providers
+          echo "--- staged web assets ---" && ls -1 www
 
       - name: Add + sync Android platform
         run: |
           if [ ! -d android ]; then npx cap add android; fi
           npx cap sync android
+
+      - name: Pin stable debug signing key (updates install over old builds)
+        run: |
+          mkdir -p ~/.android
+          if [ -f debug.keystore ]; then
+            cp -f debug.keystore ~/.android/debug.keystore
+            cp -f debug.keystore android/app/debug.keystore
+            echo "Pinned debug keystore in place - new APKs install over previous ones"
+          else
+            keytool -genkeypair -v -keystore debug.keystore \
+              -alias androiddebugkey -storepass android -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US" > /dev/null 2>&1
+            cp -f debug.keystore ~/.android/debug.keystore
+            cp -f debug.keystore android/app/debug.keystore
+            echo "Repo had no debug.keystore - auto-created and committed it"
+            git config user.name "ashs-player-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add debug.keystore
+            git commit -m "Pin stable debug signing key (auto)" || echo "nothing to commit"
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}" \
+              || echo "WARNING: could not push the keystore - future builds will use a fresh key (manual upload once needed)"
+          fi
 
       - name: Generate launcher icons + splash from assets/icon.png
         run: |
