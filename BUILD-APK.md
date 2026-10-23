@@ -13,9 +13,11 @@ Android app (`com.ashs.player`). Opens instantly, works fully offline.
    Workflow uses pinned `actions/*@v4` (v6/v7 do not exist and will fail).
 3. Open the finished run → **Artifacts** → download **Ashs-Player-apk**.
 4. Copy the APK to your phone → tap → Install (allow unknown apps once).
-5. **Uninstall the old PWABuilder (TWA) version first** — the app id changed from
-   `io.github.ashwaqahmed56.twa` to `com.ashs.player` and debug builds use a
-   different signature, so Android won't install over it.
+5. **One last uninstall may be needed after you first upload `debug.keystore`**
+   — older builds were each signed with a random key, so the very next install
+   may still say "App not installed". Uninstall once, install this build, and
+   from then on every new APK installs straight over the old one (the repo now
+   pins a single signing key for all future builds).
 
 ### Make it a signed release with YOUR key (optional, later)
 So updates install seamlessly + Play Store accepts it:

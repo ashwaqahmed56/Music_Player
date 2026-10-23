@@ -403,8 +403,24 @@ input[type=range]::-moz-range-thumb{width:10px; height:10px; border-radius:50%; 
 #popularRow>.track .t-meta span,#homePlaylists>.track .t-meta span,#homeRecent>.track .t-meta span{font-size:11.5px}
 
 /* Online tab */
+/* ── Liked Music card (Songs section) ─────────────────────── */
+.likes-card{
+  display:flex;align-items:center;gap:12px;width:100%;
+  padding:12px 14px;margin:2px 0 10px;border-radius:16px;
+  border:1px solid var(--acc-border);
+  background:linear-gradient(120deg,var(--acc-soft),transparent 65%);
+  color:var(--ink);cursor:pointer;text-align:left;
+  transition:transform .18s var(--snap), box-shadow .25s ease;
+}
+.likes-card:active{transform:scale(.985)}
+.likes-heart{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;
+  background:var(--grad);color:var(--ink-on-acc);font-size:19px;flex:none;
+  box-shadow:0 8px 20px -8px var(--acc)}
+.likes-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.likes-txt b{font-size:14.5px}
+.likes-txt small{color:var(--muted);font-size:11.5px}
+
 #onlineSrcRow{margin-top:0}
-#onlineStatus{min-height:18px}
 
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce){

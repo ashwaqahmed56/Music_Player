@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='5.2';
+const APP_VERSION='5.3';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 /* Cached getElementById — the progress tick runs several times a second
@@ -131,11 +131,8 @@ async function scanDevice(opts){
   coversLater();
   return deviceTracks.length;
 }
-/* Online registry: tracks streamed from free online providers.
-   Kept outside `cache` so offline lists/counts stay pure. getT() checks here first. */
-let onlineReg = new Map();
-function onlinePin(t){ if(t && t.id) onlineReg.set(t.id, t); return t; }
-const getT = (id)=>onlineReg.get(id)||cache.find(t=>t.id===id);
+/* Resolve any track id → its track object (offline library only now). */
+const getT = (id)=>cache.find(t=>t.id===id);
 const all = ()=>cache;
 
 let lastAppError = '', _lastErrToast = 0;
@@ -193,11 +190,8 @@ function isPublicHttp(u){ return /^https?:/i.test(u||'') && !/localhost|127\.0\.
 function setSrcSafe(t){
   try{
     const s = t.src||'';
-    // Online streams often lack CORS headers, so play them without crossOrigin.
-    // Once the EQ graph exists the element must be CORS-clean or Web Audio
-    // outputs silence, so ask for CORS in that case instead.
-    const onlineNoCors = t.source==='online' && !graphOK;
-    const noCors = onlineNoCors || /^(blob|content):/i.test(s) || /localhost|127\.0\.0\.1|_capacitor_/i.test(s);
+    // Blob/content (device-scan) and localhost streams must not use crossOrigin.
+    const noCors = /^(blob|content):/i.test(s) || /localhost|127\.0\.0\.1|_capacitor_/i.test(s);
     if(noCors){ try{audio.removeAttribute('crossOrigin');}catch(e){} try{audio.crossOrigin=null;}catch(e){} }
     else if(/^https?:/i.test(s)){ audio.crossOrigin='anonymous'; }
     else { try{audio.removeAttribute('crossOrigin');}catch(e){} }
@@ -207,7 +201,6 @@ function setSrcSafe(t){
 function ensureGraph(t){
   if(actx){ if(actx.state==='suspended') actx.resume().catch(()=>{}); return graphOK; }
   if(!store.eq.enabled) return false;
-  if(t&&t.source==='online') return false;
   try{
     actx = new (window.AudioContext||window.webkitAudioContext)();
     const src = actx.createMediaElementSource(audio);
@@ -290,9 +283,7 @@ function toggle(){ try{
   }catch(e){ reportError('toggle: '+(e&&e.message||e)); } }
 function next(auto=false){
   if(queue.length){ const id=queue.shift(); render(); return playTrack(id,{keepRadio:true, fromRadio:store.radio}); }
-  // If an online track is on deck, let the online queue advance it first.
-  const ct=getT(currentId);
-  if(ct&&ct.source==='online'&&window.UnifiedPlayer){ window.UnifiedPlayer.next(); return; }
+  // Advance through whatever is on deck — queue, shuffle or library order.
   const list=all(); if(!list.length) return;
   if(store.prefs.shuffle) return playTrack(list[Math.floor(Math.random()*list.length)].id,{keepRadio:true, fromRadio:store.radio});
   if(store.radio) return playTrack(list[Math.floor(Math.random()*list.length)].id,{keepRadio:true, fromRadio:true});
@@ -303,8 +294,6 @@ function next(auto=false){
   if(!auto) return playTrack(list[0].id,{keepRadio:true});
 }
 function prev(){ if(audio.currentTime>3){ audio.currentTime=0; return; }
-  const ct=getT(currentId);
-  if(ct&&ct.source==='online'&&window.UnifiedPlayer){ window.UnifiedPlayer.prev(); return; }
   if(store.prefs.shuffle||store.radio){ const l=all(); if(l.length) return playTrack(l[Math.floor(Math.random()*l.length)].id,{keepRadio:true, fromRadio:store.radio}); }
   const list=all(); let i=list.findIndex(t=>t.id===currentId);
   if(i>0) playTrack(list[i-1].id,{keepRadio:true}); else if(list.length) playTrack(list[list.length-1].id,{keepRadio:true}); }
@@ -325,8 +314,12 @@ function paintProgress(){
   try{ const po=E('playerOverlay'); if(po&&!audio.paused&&!po.classList.contains('hidden')&&store.synced&&store.synced[currentId]&&!showPlainLyr) paintSyncLines(false); }catch(e){}
 }
 audio.addEventListener('timeupdate',()=>{
+  /* Backgrounded WebViews never fire rAF and would leave the _rafPend latch
+     stuck at true forever, freezing the timer/mini bar after returning to the
+     app. While hidden, write the DOM directly instead of batching. */
+  if(document.hidden){ paintProgress(); return; }
   if(_rafPend) return; _rafPend=true;
-  requestAnimationFrame(()=>{ _rafPend=false; if(!document.hidden) paintProgress(); });
+  requestAnimationFrame(()=>{ _rafPend=false; paintProgress(); });
 });
 audio.addEventListener('loadedmetadata',()=>{ const t=getT(currentId); if(!t||!audio.duration||!isFinite(audio.duration)) return;
   const d=Math.round(audio.duration);
@@ -443,14 +436,11 @@ function applyTheme(){
   $$('.themeToggle').forEach(b=>b.innerHTML=th==='light'?ICONS.moon:ICONS.sun);
 }
 
-/* Expose small helpers for the online mirrors (iframe playback sessions). */
-try{ window.ASHS_ART_STYLE=artStyle; }catch(e){}
-
 /* ---------- Per-track adaptive color plates ----------
    Each song recolors the UI: accent, gradient, nav tint, eq bars, sliders
    and background blobs shift to the track's own palette. Idle = Aurora. */
 const _accCache={};
-let _accKey='', _extPl=null;
+let _accKey='';
 function _hsl(h,s,l){ h=((h%360)+360)%360; return 'hsl('+Math.round(h)+','+Math.round(s)+'%,'+Math.round(l)+'%)'; }
 function _hslRgb(h,s,l){
   h=((h%360)+360)%360; s/=100; l/=100;
@@ -487,7 +477,7 @@ function _dominantHue(url){
 async function applyTrackAccent(force){
   const th=document.documentElement.dataset.theme||'dark';
   const dark=th!=='light';
-  const rt=(_extPl&&window.ASH_EXTERNAL_PLAYER)?_extPl:getT(currentId);
+  const rt=getT(currentId);
   const hue=rt?(rt.hue!=null?rt.hue:hashHue(rt.title+' '+(rt.artist||''))):null;
   const key=(rt&&rt.id||'-')+'|'+(hue==null?'-':Math.round(hue))+'|'+th;
   if(!force&&key===_accKey) return;
@@ -512,25 +502,8 @@ async function applyTrackAccent(force){
   st.setProperty('--grad','linear-gradient(120deg,'+A+','+B+' 48%,'+C+')');
   st.setProperty('--blob1','rgba('+rgb+','+(dark?'.17':'.12')+')');
 }
-/* Central play/pause router: native library → <audio>; streaming sessions → iframe player. */
-function avToggle(){
-  try{ if(window.ASH_EXTERNAL_PLAYER&&window.UnifiedPlayer&&window.UnifiedPlayer.toggle) return void window.UnifiedPlayer.toggle(); }catch(e){}
-  try{ toggle(); }catch(e){ reportError('toggle'); }
-}
-/* Keep the accent + idle state fresh when an external session starts/ends. */
-try{
-  window.ASHS_EXT_MIRROR=(on,cur)=>{
-    try{
-      _extPl=on&&cur?{ id:'ext:'+(cur.id||cur.title),
-        title:String(cur.title||'Streaming'),
-        artist:String(cur.artist||'Online'),
-        coverUrl:cur.artworkUrl||'',
-        hue:(typeof cur._hue==='number'?cur._hue:hashHue((cur.title||'')+(cur.artist||''))) } : null;
-    }catch(e){}
-    try{ applyTrackAccent(true); }catch(e){}
-    try{ if(!on&&!currentId){ const mp=$('#miniPlayer'); if(mp) mp.classList.add('hidden'); } }catch(e){}
-  };
-}catch(e){}
+/* Play/pause from the mini bar and the big player button. */
+function avToggle(){ try{ toggle(); }catch(e){ reportError('toggle'); } }
 
 function render(){ renderLists(); renderState(); setTimeout(()=>{ flashId=null; freshIds.clear(); },700); }
 let flashId=null; const freshIds=new Set();
@@ -597,8 +570,9 @@ function renderLists(){
 function renderState(){
   rebuild();
   paintHero('hero'); paintHero('ns'); paintHero('lb');
+  const _lkc=$('#likesCount'); if(_lkc) _lkc.textContent=store.likes.length?store.likes.length+(store.likes.length===1?' song':' songs'):'Tap ♥ to add';
   const mPill=$('#mixPill'); if(mPill) mPill.textContent=store.radio?'Mix on':'Shuffle';
-  try{ document.documentElement.classList.toggle('is-playing', !!((currentId&&!audio.paused)||_extPlaying())); }catch(e){}
+  try{ document.documentElement.classList.toggle('is-playing', !!(currentId&&!audio.paused)); }catch(e){}
   paintOverlays();
   const rt=getT(currentId);
   const rTi=$('#radioTitle'); if(rTi) rTi.textContent=rt?rt.title:'Nothing playing';
@@ -611,7 +585,7 @@ function renderState(){
     else { ra.innerHTML=ICONS.radio; ra.style.cssText=''; } }
   const rn=$('#radioNext'); if(rn) paint(rn, queue.map(getT).filter(Boolean).slice(0,3), store.radio?'Shuffle mix is on — enjoy':'Queue is empty');
   if(currentId&&!getT(currentId)){ currentId=null; store.currentId=null; try{audio.pause();}catch(e){} save(); }
-  const playing=(currentId&&!audio.paused)||_extPlaying();
+  const playing=currentId&&!audio.paused;
   // Lock-screen sync: push position the instant play/pause flips,
   // then keep it fresh with the 1s timer while playing.
   if(playing!==_lastPlaySync){
@@ -621,7 +595,7 @@ function renderState(){
   if(playing) startNotifTimer(); else stopNotifTimer();
   try{ if('mediaSession' in navigator) navigator.mediaSession.playbackState=playing?'playing':'paused'; }catch(e){}
   const mp=$('#miniPlayer'); if(mp) mp.classList.toggle('hidden',!currentId);
-  if(!rt&&!_extPlaying()){ const mt0=$('#miniTitle'); if(mt0) mt0.textContent='—'; const ma0=$('#miniArtist'); if(ma0) ma0.textContent='—'; }
+  if(!rt){ const mt0=$('#miniTitle'); if(mt0) mt0.textContent='—'; const ma0=$('#miniArtist'); if(ma0) ma0.textContent='—'; }
   if(rt){
     const mt=$('#miniTitle'); if(mt) mt.textContent=rt.title;
     const ma=$('#miniArtist'); if(ma) ma.textContent=rt.artist;
@@ -631,7 +605,7 @@ function renderState(){
     const pa=$('#plArt'); if(pa){ if(rt.coverUrl) pa.innerHTML=`<img src="${esc(rt.coverUrl)}" alt="" decoding="async"/>`; else { pa.textContent=(rt.title||'♪')[0].toUpperCase(); pa.style.cssText=artStyle(rt); }
       pa.classList.toggle('playing',!!playing); }
     const amb=$('#plAmb'); if(amb){ const want=rt&&rt.coverUrl?rt.coverUrl:''; if(amb.dataset.src!==want){ amb.dataset.src=want; amb.innerHTML=want?`<img src="${esc(want)}" alt=""/>`:''; } }
-    const lyr=$('#plLyrPreview'); if(lyr) lyr.textContent=(store.lyrics[currentId]||'').split('\n')[0]||(rt.source==='demo'?'Demo track':'Lyrics will appear here');
+    const lyr=$('#plLyrPreview'); if(lyr){ let _lt=(store.lyrics[currentId]||'').split('\n')[0]||''; if(_lt) _lt=toHinglish(_lt); lyr.textContent=_lt||(rt.source==='demo'?'Demo track':'Lyrics will appear here'); }
     const hasSync=!!(store.synced&&store.synced[currentId]);
     if(_lyrTrack!==currentId){ _lyrTrack=currentId; showPlainLyr=false; _lyrIdx=-9; }
     const sbox=$('#plLyrSync');
@@ -655,10 +629,6 @@ function renderState(){
   const h=new Date().getHours();
   const gt=$('#greetTitle'); if(gt) gt.textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening');
 }
-
-/* Streaming (iframe) session alive? The mini bar and play/pause icons must
-   follow that player too, not just the <audio> element. */
-function _extPlaying(){ try{ return !!(window.ASH_EXTERNAL_PLAYER&&document.body.classList.contains('ext-playing')); }catch(e){ return false; } }
 
 function setMarquee(el, text){
   el.classList.remove('scroll'); el.textContent=text;
@@ -817,6 +787,7 @@ function paintOverlays(){
     if(!$('#listOverlay').classList.contains('hidden')&&activeCol){
       if(currentId!==lastOverlayId){ lastOverlayId=currentId||'';
         if(activeCol.type==='pl') paintPlaylistSongs(activeCol.id);
+        else if(activeCol.type==='likes') paintLikeList();
         else if(activeCol.type==='pf'){ const f=pfGet(activeCol.id); if(f) paintPFolder(f); }
         else if(activeCol.type==='fo'){ const f=store.folders.find(x=>x.id===activeCol.id); if(f) paintFolderList(f); }
         else if(activeCol.type==='al'){ const p=String(activeCol.key).split('\n'); openAlbum(p[0],p[1]); }
@@ -906,9 +877,6 @@ function startNotifTimer(){
 }
 function stopNotifTimer(){ if(_notifTimer){ clearInterval(_notifTimer); _notifTimer=null; } }
 function syncNotif(){
-  // Single-MediaSession rule: while the YouTube background module is active it
-  // owns the lock screen, so the app's own session/notification stands down.
-  if(window.ASH_EXTERNAL_PLAYER) return;
   mediaSession(); // browser / PWA path
   try{
     const MC=mcPlugin(); if(!MC) return;
@@ -927,13 +895,9 @@ function syncNotif(){
     }
     const httpCover=(t.coverUrl&&isPublicHttp(t.coverUrl))?t.coverUrl:'';
     if(!trackChanged){ _lastNotifPlaying=playing; mcUpdatePlaying(MC, playing); return; }
-    if(!appVisible()){
-      _lastNotifPlaying=playing;
-      mcUpdatePlaying(MC, playing);
-      try{ if(MC.updateElapsed){ const dur=Math.max(0,Math.round((t.duration||audio.duration||0)*1000));
-        const r=MC.updateElapsed({isPlaying:playing, elapsed:Math.max(0,Math.floor((audio.currentTime||0)*1000)), duration:dur}); r&&r.catch&&r.catch(()=>{}); } }catch(e){}
-      return;
-    }
+    /* Track changed while the app is backgrounded: the notification (lock
+       screen) must still get the NEW title — Android/media-notification
+       updates are allowed in the background for a running service. */
     _lastNotifId=t.id; _lastNotifPlaying=playing;
     notifCover(httpCover).then(cover=>{
       if(!store.prefs.notif||_lastNotifId!==t.id) return;
@@ -948,7 +912,7 @@ function syncNotif(){
   }catch(e){}
 }
 
-const TAB_ORDER=['home','new','online','radio','library'];
+const TAB_ORDER=['home','new','radio','library'];
 let _tabTimer=null, _tabLeaving=null;
 function moveNavGlider(name){
   try{
@@ -1225,6 +1189,61 @@ function playlistFromSelected(){
 }
 
 let showPlainLyr=false, _lyrIdx=-9, _lyrTrack=null, _lyrCacheId=null, _lyrCache=[];
+/* ---------- Devanagari → Hinglish (roman script) ----------
+   Transliterates Hindi lyric text (को दिल → ko dil). Runs only on the display
+   path, so LRC timestamps stay perfectly synced and already-cached Hindi
+   lyrics from earlier sessions are converted too. Latin text passes through. */
+const _DV_CONS={'क':'k','ख':'kh','ग':'g','घ':'gh','ङ':'n','च':'ch','छ':'chh','ज':'j','झ':'jh','ञ':'ny','ट':'t','ठ':'th','ड':'d','ढ':'dh','ण':'n','त':'t','थ':'th','द':'d','ध':'dh','न':'n','प':'p','फ':'ph','ब':'b','भ':'bh','म':'m','य':'y','र':'r','ल':'l','ळ':'l','व':'v','श':'sh','ष':'sh','स':'s','ह':'h','ज़':'z','ख़':'kh','ग़':'g','ड़':'d','ढ़':'dh','फ़':'f','य़':'y'};
+const _DV_VOWL={'अ':'a','आ':'aa','इ':'i','ई':'i','उ':'u','ऊ':'u','ऋ':'ri','ए':'e','ऐ':'ai','ओ':'o','औ':'au','ऍ':'e','ऑ':'o'};
+const _DV_MATR={'ा':'a','ि':'i','ी':'i','ु':'u','ू':'u','ृ':'ri','ॄ':'ri','ॅ':'e','ॆ':'e','े':'e','ै':'ai','ॉ':'o','ॊ':'o','ो':'o','ौ':'au'};
+const _DV_DIG={'०':'0','१':'1','२':'2','३':'3','४':'4','५':'5','६':'6','७':'7','८':'8','९':'9'};
+/* Iconic song words — exact fan-typed forms the generic scan can't hit */
+const _DV_WORDS={'नहीं':'nahin','में':'mein','हम':'hum','करना':'karna','करूँ':'karun','करूं':'karun','करते':'karte','करता':'karta','करती':'karti','तुझसे':'tujhse','मुझसे':'mujhse','तुझे':'tujhe','मुझे':'mujhe','तुझको':'tujhko','मुझको':'mujhko','ज़िंदगी':'zindagi','दुनिया':'duniya','दुनियाँ':'duniya','दिल':'dil','कितना':'kitna','कितनी':'kitni','कितने':'kitne','चाँद':'chaand','चांद':'chaand','वह':'woh','यह':'yeh','प्यार':'pyaar','दीवाना':'deewana','दीवानी':'deewani','दिवाना':'deewana','बेवफा':'bewafa','बेवफ़ा':'bewafa','वफ़ा':'wafa','वफा':'wafa','खुशबू':'khushboo','मोहब्बत':'mohabbat','अपना':'apna','अपनी':'apni','अपने':'apne','जान':'jaan','ख़ुदा':'khuda','हूँ':'hoon','सपना':'sapna','सपने':'sapne','ख्वाब':'khwaab','ख़्वाब':'khwaab'};
+/* ज़ is often typed decomposed (ज + ़) — compose it first so keys match */
+const _DV_NUK={'क':'क़','ख':'ख़','ग':'ग़','ड':'ड़','ढ':'ढ़','ज':'ज़','फ':'फ़','य':'य़'};
+function _dvScan(word){
+  let out='';
+  for(let i=0;i<word.length;i++){
+    const ch=word[i];
+    if(ch==='्') continue;                                        // cluster join
+    if(_DV_VOWL[ch]){ out+=_DV_VOWL[ch]; continue; }
+    if(_DV_MATR[ch]){ out+=_DV_MATR[ch]; continue; }
+    if(_DV_DIG[ch]){ out+=_DV_DIG[ch]; continue; }
+    if(ch==='।'||ch==='॥'){ out+='.'; continue; }
+    if(ch==='ॐ'){ out+='om'; continue; }
+    if(ch==='ं'||ch==='ँ'){
+      const nx=word[i+1], nas=(_DV_CONS[nx]&&/^(p|ph|b|bh|m)$/.test(_DV_CONS[nx]))?'m':'n';
+      out+=nas; continue;
+    }
+    if(ch==='ः'){ out+='h'; continue; }
+    if(ch==='़') continue;                                        // stray nukta
+    if(ch==='ज'&&word[i+1]==='्'&&word[i+2]==='ञ'){
+      out+='gy'+(_DV_MATR[word[i+3]]||'a'); i+=3; continue;
+    }
+    if(_DV_CONS[ch]){
+      out+=_DV_CONS[ch];
+      const n1=word[i+1];
+      if(n1===undefined) continue;                                // word end: silent final 'a' (दिल → dil)
+      if(n1==='्'){ i++; continue; }                              // conjunct: no vowel between
+      if(_DV_MATR[n1]){ out+=_DV_MATR[n1]; i++; continue; }
+      if(n1==='ं'||n1==='ँ'){                                     // inherent 'a' + trailing nasal (संग → sang)
+        const n2=word[i+2];
+        out+='a'+((_DV_CONS[n2]&&/^(p|ph|b|bh|m)$/.test(_DV_CONS[n2]))?'m':'n');
+        i++; continue;
+      }
+      out+='a'; continue;                                         // mid-word schwa stays (readable)
+    }
+    out+=ch;
+  }
+  return out;
+}
+function toHinglish(str){
+  str=String(str||'');
+  if(!/[\u0900-\u097F]/.test(str)) return str;
+  str=str.replace(/([कखगडढजफय])़/g,(m,c)=>_DV_NUK[c]||c);         // decomposed nukta → composed
+  return str.replace(/[\u0900-\u0963\u0966-\u097F]+/g,w=>_DV_WORDS[w]||_dvScan(w));
+}
+
 function parseLRC(lrc){ const out=[], re=/\[(\d+):(\d+(?:\.\d+)?)\]/g;
   String(lrc||'').split('\n').forEach(line=>{ const times=[]; let m; re.lastIndex=0;
     while((m=re.exec(line))) times.push((+m[1])*60+(+m[2]));
@@ -1246,7 +1265,7 @@ async function fetchSynced(t){
   return d;
 }
 function syncLines(){ const s=store.synced&&store.synced[currentId]; if(!s||!s.lrc) return null;
-  if(_lyrCacheId!==currentId){ _lyrCache=parseLRC(s.lrc); _lyrCacheId=currentId; } return _lyrCache; }
+  if(_lyrCacheId!==currentId){ _lyrCache=parseLRC(s.lrc); for(const _l of _lyrCache) _l.x=toHinglish(_l.x); _lyrCacheId=currentId; } return _lyrCache; }
 function paintSyncLines(force){ const L=syncLines(), box=$('#plLyrSync'); if(!L||!L.length||!box) return;
   const c=audio.currentTime||0; let i=-1;
   for(let k=0;k<L.length;k++){ if(L[k].t<=c+0.15) i=k; else break; }
@@ -1260,13 +1279,13 @@ function lyrEditor(id){ const t=getT(id); if(!t) return;
   $('#lyW').onclick=async()=>{ toast('Searching synced lyrics…');
     try{ const d=await fetchSynced(t);
       store.synced=store.synced||{}; store.synced[id]={lrc:d.syncedLyrics,at:Date.now()};
-      if(!$('#lyT').value.trim()&&d.plainLyrics) $('#lyT').value=d.plainLyrics;
+      if(!$('#lyT').value.trim()&&d.plainLyrics) $('#lyT').value=toHinglish(d.plainLyrics);
       save(); toast('Synced lyrics saved — plays offline now'); lyrEditor(id);
     }catch(e){ toast(e===1?'Instrumental track — no lyrics':(!navigator.onLine?'You are offline':'No synced lyrics found')); } };
   const rm=$('#lyR'); if(rm) rm.onclick=()=>{ delete store.synced[id]; save(); closeSheet(); render(); toast('Synced lyrics removed'); }; }
 function eqSheet(){
   sheet(`<h2>Equalizer</h2><label class="switch"><input type="checkbox" id="eqE" ${store.eq.enabled?'checked':''}/> Enable EQ</label>
-  <p class="muted" style="font-size:12.5px">EQ applies from the next song you play and works on your own music. Online streams and live radio play without it.</p>
+  <p class="muted" style="font-size:12.5px">EQ applies from the next song you play and works on your own music.</p>
   <div class="chips">${Object.keys(EQ_PRESETS).map(n=>`<button class="${store.eq.preset===n?'active':''}" data-p="${n}">${n}</button>`).join('')}</div>
   <div id="eqRows">${EQ_BANDS.map((b,i)=>`<div class="eq-row"><label>${b.l}</label><input type="range" min="-12" max="12" data-i="${i}" value="${store.eq.gains[i]||0}" aria-label="${b.l}"/><span>${store.eq.gains[i]||0} dB</span></div>`).join('')}</div>
   <button class="opt" id="eqX">Close</button>`);
@@ -1410,6 +1429,20 @@ function paintFolderList(f){
     p.textContent='Scanned from your device — files stay untouched.';
     el.appendChild(p);
   }
+  $('#listOverlay').classList.remove('hidden'); }
+
+/* Liked Music — the automatic home of every ♥ song. Always in sync with the
+   hearts you tap; nothing is copied or moved, it just gathers what you liked. */
+function openLikes(){ activeCol={type:'likes',id:'__likes__'};
+  paintLikeList();
+  $('#listOverlay').classList.remove('hidden'); }
+function paintLikeList(){
+  $('#listAddSongs').style.display='none';
+  $('#listTitle').textContent='Liked Music';
+  const ts=store.likes.map(getT).filter(Boolean);
+  const tot=ts.reduce((a,t)=>a+(t.duration||0),0);
+  $('#listSub').textContent=ts.length?ts.length+(ts.length===1?' song':' songs')+(tot?' · '+fmt(tot):''):'Nothing liked yet';
+  paintColSongs(ts,'Tap ♥ on any song — your favorites collect here');
   $('#listOverlay').classList.remove('hidden'); }
 
 /* Playlist-folder screen: shows contained playlists/nested folders. */
@@ -1734,6 +1767,7 @@ function bind(){
   const ab2=$('#addMusicBtn2'); if(ab2) ab2.onclick=add;
   const la=$('#libAdd'); if(la) la.onclick=add;
   const qA=$('#quickAdd'); if(qA) qA.onclick=add;
+  const lk=$('#likesCard'); if(lk) lk.onclick=openLikes;
   const qS=$('#quickShuffle'); if(qS) qS.onclick=()=>{ const l=all(); if(!l.length) return toast('Add music first'); store.prefs.shuffle=true; save(); playTrack(l[Math.floor(Math.random()*l.length)].id,{open:true,keepRadio:true}); render(); };
   const qM=$('#quickMix'); if(qM) qM.onclick=()=>{ tab('radio'); const rt=$('#radioToggle'); if(rt) rt.click(); };
   const fi=$('#fileInput'); if(fi) fi.onchange=e=>{ handleFiles(e.target.files); e.target.value=''; };
@@ -1832,5 +1866,14 @@ function segTo(s){ libSeg=s; $$('.seg button').forEach(b=>b.classList.toggle('ac
   render();
   if(currentId&&getT(currentId)){ try{ setSrcSafe(getT(currentId)); }catch(e){ try{audio.src=getT(currentId).src;}catch(_){} } audio.playbackRate=store.prefs.speed||1; applyVolume(); render(); }
   try{ document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&actx&&actx.state==='suspended'&&!audio.paused) actx.resume().catch(()=>{}); }); }catch(e){}
+  /* Reconcile the whole UI when the app comes back to the foreground:
+     tracks advanced (notification controls / auto-next) while backgrounded
+     must show their real title, art, plate and position immediately. */
+  try{ document.addEventListener('visibilitychange',()=>{
+    if(document.hidden) return;
+    try{ _rafPend=false; }catch(e){}
+    try{ paintProgress(); }catch(e){}
+    try{ render(); }catch(e){}
+  }); }catch(e){}
   console.log('%cAsh\'s Player ready — '+all().length+' tracks','color:#2dd4bf;font-weight:bold');
 })();

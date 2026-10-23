@@ -1,13 +1,10 @@
 // Syntax-checks the browser scripts the same way the app loads them.
 // Run with: npm run check
 import { execFileSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
 
 const files = [
   'app.js',
-  'online.js',
   'sw.js',
-  ...readdirSync('providers').filter((f) => f.endsWith('.js')).map((f) => 'providers/' + f),
 ];
 
 let failed = false;
